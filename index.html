@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Plattenspi(e)lers – Das Spiel</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="game-wrapper">
+<canvas id="game" width="900" height="450"></canvas>
+
+<div id="hud">
+<span id="score">Punkte: 0</span>
+</div>
+
+<div id="gameover" class="hidden">
+<h1>Game Over</h1>
+<input id="playerName" placeholder="Name">
+<button onclick="saveScore()">Speichern</button>
+<ul id="highscores"></ul>
+<button onclick="restart()">Nochmal spielen</button>
+</div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
