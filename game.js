@@ -1,234 +1,242 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-/* ===============================
+/* ======================
    GAME STATE
-================================= */
+====================== */
 let running = false;
 let started = false;
 let score = 0;
-let frameCount = 0;
+let frame = 0;
 
-/* ===============================
-   SPEED / FLOW
-================================= */
-let baseSpeed = 4;
-let speed = baseSpeed;
+/* ======================
+   SPEED
+====================== */
+let speed = 4;
 const SPEED_STEP = 0.6;
-const SPEED_SCORE_INTERVAL = 1500;
+const SPEED_INTERVAL = 1500;
 const MAX_SPEED = 9;
-const JUMP_FORWARD_BOOST = 1.35;
+const JUMP_FORWARD_BOOST = 1.3;
 
-/* ===============================
-   GRAVITY / JUMP
-================================= */
+/* ======================
+   PHYSICS
+====================== */
 const GRAVITY_GROUND = 1.2;
-const GRAVITY_AIR = 0.75;
-const JUMP_CUT_MULTIPLIER = 0.4; // <- Sprung abbrechen beim Loslassen
+const GRAVITY_AIR = 0.8;
+const JUMP_CUT = 0.4;
 
-/* ===============================
+/* ======================
    WORLD
-================================= */
+====================== */
 const ROAD_Y = 380;
 const UPPER_COLLECT_Y = 240;
 
-/* ===============================
+/* ======================
    PLAYER
-================================= */
+====================== */
 const player = {
-    x: 120,
-    y: 0,
-    w: 192,
-    h: 144,
-    vy: 0,
-    jumpPower: -26,
-    onGround: true,
-    isJumping: false
+  x: 120,
+  y: 0,
+  w: 192,
+  h: 144,
+  vy: 0,
+  jumpPower: -26,
+  onGround: true,
+  jumping: false
 };
 
-let runFrame = 0;
-let runTick = 0;
+/* ======================
+   ASSETS
+====================== */
+const images = {};
+const assets = {
+  bg: "assets/bg.png",
+  run1: "assets/player_run1.png",
+  run2: "assets/player_run2.png",
+  jump: "assets/player_jump.png",
+  obstacle: "assets/obstacle.png",
+  collect: "assets/collect1.png"
+};
 
-/* ===============================
+let loaded = 0;
+Object.keys(assets).forEach(k => {
+  images[k] = new Image();
+  images[k].src = assets[k];
+  images[k].onload = () => {
+    loaded++;
+    if (loaded === Object.keys(assets).length) drawStartScreen();
+  };
+});
+
+/* ======================
    OBJECTS
-================================= */
+====================== */
 let bgX = 0;
 let obstacles = [];
 let bonuses = [];
-let lastObstacleFrame = 0;
-const MIN_OBSTACLE_FRAMES = 130;
+let lastObstacle = 0;
 
-/* ===============================
-   HIGHSCORE
-================================= */
-const SCORE_KEY = "psgame_highscores";
-
-/* ===============================
+/* ======================
    INPUT
-================================= */
+====================== */
 document.addEventListener("keydown", e => {
-    if (!started) return;
-
-    if ((e.code === "Space" || e.code === "ArrowUp") && player.onGround) {
-        player.vy = player.jumpPower;
-        player.onGround = false;
-        player.isJumping = true;
-    }
+  if (!started) return;
+  if ((e.code === "Space" || e.code === "ArrowUp") && player.onGround) {
+    player.vy = player.jumpPower;
+    player.onGround = false;
+    player.jumping = true;
+  }
 });
 
 document.addEventListener("keyup", e => {
-    if ((e.code === "Space" || e.code === "ArrowUp") && player.isJumping) {
-        if (player.vy < 0) {
-            player.vy *= JUMP_CUT_MULTIPLIER;
-        }
-        player.isJumping = false;
-    }
+  if ((e.code === "Space" || e.code === "ArrowUp") && player.jumping) {
+    if (player.vy < 0) player.vy *= JUMP_CUT;
+    player.jumping = false;
+  }
 });
 
 canvas.addEventListener("touchstart", () => {
-    if (!started || !player.onGround) return;
-    player.vy = player.jumpPower;
-    player.onGround = false;
-    player.isJumping = true;
+  if (!started || !player.onGround) return;
+  player.vy = player.jumpPower;
+  player.onGround = false;
+  player.jumping = true;
 });
 
 canvas.addEventListener("touchend", () => {
-    if (player.isJumping && player.vy < 0) {
-        player.vy *= JUMP_CUT_MULTIPLIER;
-    }
-    player.isJumping = false;
+  if (player.jumping && player.vy < 0) player.vy *= JUMP_CUT;
+  player.jumping = false;
 });
 
-/* ===============================
-   START SCREEN
-================================= */
+/* ======================
+   STARTSCREEN
+====================== */
 function drawStartScreen() {
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#fff";
-    ctx.textAlign = "center";
-    ctx.font = "24px Arial";
-    ctx.fillText("PC: LEERTASTE = Springen", canvas.width / 2, 170);
-    ctx.fillText("Handy: TIPPen / HALTEN = höher springen", canvas.width / 2, 205);
-    ctx.fillText("📱 Handy quer halten", canvas.width / 2, 245);
-    ctx.font = "26px Arial";
-    ctx.fillText("▶ SPIEL STARTEN", canvas.width / 2, 320);
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#fff";
+  ctx.textAlign = "center";
+  ctx.font = "22px Arial";
+  ctx.fillText("PC: Leertaste = Springen", 450, 180);
+  ctx.fillText("Handy: Tippen / Halten", 450, 210);
+  ctx.fillText("📱 Handy quer halten", 450, 250);
+  ctx.font = "26px Arial";
+  ctx.fillText("▶ SPIEL STARTEN", 450, 320);
 
-    canvas.addEventListener("click", startFromScreen, { once: true });
-    canvas.addEventListener("touchstart", startFromScreen, { once: true });
+  canvas.onclick = startGame;
 }
 
-function startFromScreen() {
-    started = true;
-    running = true;
-    startGame();
-}
-
-/* ===============================
+/* ======================
    GAME LOOP
-================================= */
-function gameLoop() {
-    if (!running) return;
-    frameCount++;
+====================== */
+function loop() {
+  if (!running) return;
+  frame++;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const level = Math.floor(score / SPEED_SCORE_INTERVAL);
-    speed = Math.min(baseSpeed + level * SPEED_STEP, MAX_SPEED);
-    const effectiveSpeed = player.onGround ? speed : speed * JUMP_FORWARD_BOOST;
+  const level = Math.floor(score / SPEED_INTERVAL);
+  speed = Math.min(4 + level * SPEED_STEP, MAX_SPEED);
+  const effSpeed = player.onGround ? speed : speed * JUMP_FORWARD_BOOST;
 
-    /* PHYSICS */
-    player.vy += player.onGround ? GRAVITY_GROUND : GRAVITY_AIR;
-    player.y += player.vy;
+  // Background
+  bgX -= effSpeed;
+  if (bgX <= -canvas.width) bgX = 0;
+  ctx.drawImage(images.bg, bgX, 0, canvas.width, canvas.height);
+  ctx.drawImage(images.bg, bgX + canvas.width, 0, canvas.width, canvas.height);
 
-    const groundY = ROAD_Y - player.h;
-    if (player.y >= groundY) {
-        player.y = groundY;
-        player.vy = 0;
-        player.onGround = true;
-        player.isJumping = false;
-    }
+  // Player physics
+  player.vy += player.onGround ? GRAVITY_GROUND : GRAVITY_AIR;
+  player.y += player.vy;
 
-    /* OBSTACLES */
-    obstacles.forEach((o, i) => {
-        o.x -= effectiveSpeed;
-        if (collide(player, o)) endGame();
-        if (o.x + o.w < 0) obstacles.splice(i, 1);
+  const ground = ROAD_Y - player.h;
+  if (player.y >= ground) {
+    player.y = ground;
+    player.vy = 0;
+    player.onGround = true;
+  }
+
+  // Player draw
+  const img = player.onGround
+    ? (frame % 20 < 10 ? images.run1 : images.run2)
+    : images.jump;
+  ctx.drawImage(img, player.x, player.y, player.w, player.h);
+
+  // Obstacles
+  obstacles.forEach((o, i) => {
+    o.x -= effSpeed;
+    ctx.drawImage(images.obstacle, o.x, o.y, o.w, o.h);
+    if (collide(player, o)) endGame();
+    if (o.x + o.w < 0) obstacles.splice(i, 1);
+  });
+
+  // Spawn obstacle
+  if (frame - lastObstacle > 130 && Math.random() < 0.03) {
+    obstacles.push({
+      x: canvas.width,
+      y: ROAD_Y - 160,
+      w: 80,
+      h: 160
     });
+    lastObstacle = frame;
+  }
 
-    /* SCORE */
-    score++;
-    updateScore();
+  score++;
+  document.getElementById("score").innerText = "Punkte: " + score;
 
-    /* SPAWNS */
-    if (
-        frameCount > 120 &&
-        frameCount - lastObstacleFrame > MIN_OBSTACLE_FRAMES &&
-        Math.random() < 0.035
-    ) {
-        obstacles.push({
-            x: canvas.width + 40,
-            y: ROAD_Y - 160 + 12,
-            w: 80,
-            h: 160
-        });
-        lastObstacleFrame = frameCount;
-    }
-
-    requestAnimationFrame(gameLoop);
+  requestAnimationFrame(loop);
 }
 
-/* ===============================
-   HIGHSCORE LOGIC
-================================= */
-function saveHighscore(name) {
-    const scores = JSON.parse(localStorage.getItem(SCORE_KEY)) || [];
-    scores.push({ name, score });
-    scores.sort((a, b) => b.score - a.score);
-    localStorage.setItem(SCORE_KEY, JSON.stringify(scores.slice(0, 10)));
-}
-
-function loadHighscores() {
-    return JSON.parse(localStorage.getItem(SCORE_KEY)) || [];
-}
-
-/* ===============================
-   HELPERS
-================================= */
+/* ======================
+   COLLISION
+====================== */
 function collide(a, b) {
-    return (
-        a.x < b.x + b.w &&
-        a.x + a.w > b.x &&
-        a.y < b.y + b.h &&
-        a.y + a.h > b.y
-    );
+  return (
+    a.x < b.x + b.w &&
+    a.x + a.w > b.x &&
+    a.y < b.y + b.h &&
+    a.y + a.h > b.y
+  );
 }
 
-function updateScore() {
-    document.getElementById("score").innerText = "Punkte: " + score;
+/* ======================
+   HIGHSCORE
+====================== */
+const KEY = "psgame_scores";
+
+document.getElementById("saveScore").onclick = () => {
+  const name = document.getElementById("playerName").value || "Anonym";
+  const scores = JSON.parse(localStorage.getItem(KEY)) || [];
+  scores.push({ name, score });
+  scores.sort((a, b) => b.score - a.score);
+  localStorage.setItem(KEY, JSON.stringify(scores.slice(0, 5)));
+  renderHighscores();
+};
+
+function renderHighscores() {
+  const list = JSON.parse(localStorage.getItem(KEY)) || [];
+  const div = document.getElementById("highscores");
+  div.innerHTML = "<h3>Bestenliste</h3>" +
+    list.map(s => `${s.name}: ${s.score}`).join("<br>");
+}
+
+/* ======================
+   GAME FLOW
+====================== */
+function startGame() {
+  started = true;
+  running = true;
+  score = 0;
+  obstacles = [];
+  player.y = ROAD_Y - player.h;
+  loop();
 }
 
 function endGame() {
-    running = false;
-    const name = document.getElementById("playerName")?.value || "Anonym";
-    saveHighscore(name);
-    document.getElementById("gameover").style.display = "flex";
-}
-
-function startGame() {
-    score = 0;
-    frameCount = 0;
-    obstacles = [];
-    player.y = ROAD_Y - player.h;
-    updateScore();
-    gameLoop();
+  running = false;
+  document.getElementById("gameover").style.display = "flex";
+  renderHighscores();
 }
 
 function restart() {
-    location.reload();
+  location.reload();
 }
-
-/* ===============================
-   INIT
-================================= */
-drawStartScreen();
