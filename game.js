@@ -2,14 +2,14 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 /* ===============================
-BASISSTATUS
+   BASISSTATUS
 ================================= */
 let running = true;
 let score = 0;
 let frameCount = 0;
 
 /* ===============================
-SPEED
+   SPEED
 ================================= */
 let baseSpeed = 4;
 let speed = baseSpeed;
@@ -18,254 +18,263 @@ const SPEED_SCORE_INTERVAL = 1500;
 const MAX_SPEED = 9;
 
 /* ===============================
-BILDER LADEN
+   BILDER LADEN
 ================================= */
 const images = {};
 const imageFiles = {
-bg: "assets/bg.png",
-run1: "assets/player_run1.png",
-run2: "assets/player_run2.png",
-jump: "assets/player_jump.png",
-obstacle: "assets/obstacle.png",
-collect1: "assets/collect1.png",
-collect2: "assets/collect2.png",
-collect3: "assets/collect3.png"
+    bg: "assets/bg.png",
+    run1: "assets/player_run1.png",
+    run2: "assets/player_run2.png",
+    jump: "assets/player_jump.png",
+    obstacle: "assets/obstacle.png",
+    collect1: "assets/collect1.png",
+    collect2: "assets/collect2.png",
+    collect3: "assets/collect3.png"
 };
 
 let imagesLoaded = 0;
 const totalImages = Object.keys(imageFiles).length;
 
 for (const key in imageFiles) {
-const img = new Image();
-img.src = imageFiles[key];
-img.onload = () => {
-imagesLoaded++;
-if (imagesLoaded === totalImages) startGame();
-};
-images[key] = img;
+    const img = new Image();
+    img.src = imageFiles[key];
+    img.onload = () => {
+        imagesLoaded++;
+        if (imagesLoaded === totalImages) startGame();
+    };
+    images[key] = img;
 }
 
 /* ===============================
-EBENEN
+   EBENEN
 ================================= */
-const GROUND_Y = 300; // Boden
-const UPPER_Y = 210; // zweite Ebene
+const GROUND_Y = 300;
+const UPPER_Y  = 210;
 
 /* ===============================
-SPIELER (2× GRÖSSE)
+   SPIELER (2×)
 ================================= */
 const player = {
-x: 120,
-y: GROUND_Y,
-w: 192,
-h: 144,
-vy: 0,
-gravity: 1.4,
-jumpPower: -22,
-onGround: true
+    x: 120,
+    y: GROUND_Y,
+    w: 192,
+    h: 144,
+    vy: 0,
+    gravity: 1.4,
+    jumpPower: -22,
+    onGround: true
 };
 
 let runFrame = 0;
 let runTick = 0;
 
 /* ===============================
-OBJEKTE
+   OBJEKTE
 ================================= */
 let bgX = 0;
 let obstacles = [];
 let bonuses = [];
 
-/* Abstand über Zeit */
 let lastObstacleFrame = 0;
 const MIN_OBSTACLE_FRAMES = 120;
 
 /* ===============================
-STEUERUNG
+   STEUERUNG
 ================================= */
 document.addEventListener("keydown", e => {
-if ((e.code === "Space" || e.code === "ArrowUp") && player.onGround) {
-player.vy = player.jumpPower;
-player.onGround = false;
-}
+    if ((e.code === "Space" || e.code === "ArrowUp") && player.onGround) {
+        player.vy = player.jumpPower;
+        player.onGround = false;
+    }
 });
 
 canvas.addEventListener("touchstart", () => {
-if (player.onGround) {
-player.vy = player.jumpPower;
-player.onGround = false;
-}
+    if (player.onGround) {
+        player.vy = player.jumpPower;
+        player.onGround = false;
+    }
 });
 
 /* ===============================
-GAME LOOP
+   GAME LOOP
 ================================= */
 function gameLoop() {
-if (!running) return;
+    if (!running) return;
 
-frameCount++;
-ctx.clearRect(0, 0, canvas.width, canvas.height);
+    frameCount++;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-/* ---------- SPEED ---------- */
-const level = Math.floor(score / SPEED_SCORE_INTERVAL);
-speed = Math.min(baseSpeed + level * SPEED_STEP, MAX_SPEED);
+    /* ---------- SPEED ---------- */
+    const level = Math.floor(score / SPEED_SCORE_INTERVAL);
+    speed = Math.min(baseSpeed + level * SPEED_STEP, MAX_SPEED);
 
-/* ---------- HINTERGRUND ---------- */
-bgX -= speed;
-if (bgX <= -canvas.width) bgX = 0;
-ctx.drawImage(images.bg, bgX, 0, canvas.width, canvas.height);
-ctx.drawImage(images.bg, bgX + canvas.width, 0, canvas.width, canvas.height);
+    /* ---------- HINTERGRUND ---------- */
+    bgX -= speed;
+    if (bgX <= -canvas.width) bgX = 0;
 
-/* ---------- SPIELER PHYSIK ---------- */
-player.vy += player.gravity;
-player.y += player.vy;
+    drawImageSafe(images.bg, bgX, 0, canvas.width, canvas.height);
+    drawImageSafe(images.bg, bgX + canvas.width, 0, canvas.width, canvas.height);
 
-if (player.y >= GROUND_Y) {
-player.y = GROUND_Y;
-player.vy = 0;
-player.onGround = true;
-}
+    /* ---------- SPIELER PHYSIK ---------- */
+    player.vy += player.gravity;
+    player.y += player.vy;
 
-/* ---------- SPIELER ZEICHNEN ---------- */
-if (!player.onGround) {
-ctx.drawImage(images.jump, player.x, player.y, player.w, player.h);
-} else {
-runTick++;
-if (runTick > 7) {
-runFrame = (runFrame + 1) % 2;
-runTick = 0;
-}
-ctx.drawImage(
-runFrame === 0 ? images.run1 : images.run2,
-player.x, player.y, player.w, player.h
-);
-}
+    if (player.y >= GROUND_Y) {
+        player.y = GROUND_Y;
+        player.vy = 0;
+        player.onGround = true;
+    }
 
-/* ---------- OBSTACLES ---------- */
-obstacles.forEach((o, i) => {
-o.x -= speed;
-ctx.drawImage(images.obstacle, o.x, o.y, o.w, o.h);
+    /* ---------- SPIELER ZEICHNEN ---------- */
+    const px = Math.round(player.x);
+    const py = Math.round(player.y);
 
-if (collide(player, o)) {
+    if (!player.onGround) {
+        drawImageSafe(images.jump, px, py, player.w, player.h);
+    } else {
+        runTick++;
+        if (runTick > 7) {
+            runFrame = (runFrame + 1) % 2;
+            runTick = 0;
+        }
+        drawImageSafe(
+            runFrame === 0 ? images.run1 : images.run2,
+            px, py, player.w, player.h
+        );
+    }
 
-// Untere Ebene → immer tödlich
-if (o.level === "ground") {
-endGame();
-}
+    /* ---------- OBSTACLES ---------- */
+    obstacles.forEach((o, i) => {
+        o.x -= speed;
 
-// Obere Ebene → nur tödlich beim Springen
-if (o.level === "upper" && !player.onGround) {
-endGame();
-}
-}
+        drawImageSafe(images.obstacle, o.x, o.y, o.w, o.h);
 
-if (o.x + o.w < 0) obstacles.splice(i, 1);
-});
+        if (collide(player, o)) {
+            if (o.level === "ground") endGame();
+            if (o.level === "upper" && !player.onGround) endGame();
+        }
 
-/* ---------- COLLECTABLES ---------- */
-bonuses.forEach((b, i) => {
-b.x -= speed;
-ctx.drawImage(b.img, b.x, b.y, b.w, b.h);
+        if (o.x + o.w < 0) obstacles.splice(i, 1);
+    });
 
-if (collide(player, b)) {
-score += b.points;
-bonuses.splice(i, 1);
-updateScore();
-}
+    /* ---------- COLLECTABLES ---------- */
+    bonuses.forEach((b, i) => {
+        b.x -= speed;
+        drawImageSafe(b.img, b.x, b.y, b.w, b.h);
 
-if (b.x + b.w < 0) bonuses.splice(i, 1);
-});
+        if (collide(player, b)) {
+            score += b.points;
+            bonuses.splice(i, 1);
+            updateScore();
+        }
 
-/* ---------- OBSTACLE SPAWN ---------- */
-if (
-frameCount > 120 &&
-frameCount - lastObstacleFrame > MIN_OBSTACLE_FRAMES &&
-Math.random() < 0.035
-) {
-const isUpper = Math.random() < 0.5;
+        if (b.x + b.w < 0) bonuses.splice(i, 1);
+    });
 
-obstacles.push({
-x: canvas.width + 40,
-y: isUpper ? UPPER_Y : GROUND_Y - 160,
-w: 80,
-h: 160,
-level: isUpper ? "upper" : "ground"
-});
+    /* ---------- OBSTACLE SPAWN ---------- */
+    if (
+        frameCount > 120 &&
+        frameCount - lastObstacleFrame > MIN_OBSTACLE_FRAMES &&
+        Math.random() < 0.035
+    ) {
+        const isUpper = Math.random() < 0.5;
 
-lastObstacleFrame = frameCount;
-}
+        obstacles.push({
+            x: canvas.width + 40,
+            y: isUpper ? UPPER_Y : GROUND_Y - 160,
+            w: 80,
+            h: 160,
+            level: isUpper ? "upper" : "ground"
+        });
 
-/* ---------- BONUS SPAWN ---------- */
-if (frameCount > 120 && Math.random() < 0.02) {
-const types = [
-{ img: images.collect1, points: 50 },
-{ img: images.collect2, points: 25 },
-{ img: images.collect3, points: 15 }
-];
-const t = types[Math.floor(Math.random() * types.length)];
+        lastObstacleFrame = frameCount;
+    }
 
-bonuses.push({
-x: canvas.width,
-y: Math.random() < 0.5 ? UPPER_Y : GROUND_Y - 40,
-w: 96,
-h: 96,
-img: t.img,
-points: t.points
-});
-}
+    /* ---------- BONUS SPAWN ---------- */
+    if (frameCount > 120 && Math.random() < 0.02) {
+        const types = [
+            { img: images.collect1, points: 50 },
+            { img: images.collect2, points: 25 },
+            { img: images.collect3, points: 15 }
+        ];
+        const t = types[Math.floor(Math.random() * types.length)];
 
-requestAnimationFrame(gameLoop);
+        bonuses.push({
+            x: canvas.width,
+            y: Math.random() < 0.5 ? UPPER_Y : GROUND_Y - 40,
+            w: 96,
+            h: 96,
+            img: t.img,
+            points: t.points
+        });
+    }
+
+    requestAnimationFrame(gameLoop);
 }
 
 /* ===============================
-HELFER
+   PIXELSTABILES ZEICHNEN
+================================= */
+function drawImageSafe(img, x, y, w, h) {
+    ctx.drawImage(
+        img,
+        Math.round(x),
+        Math.round(y),
+        Math.round(w),
+        Math.round(h)
+    );
+}
+
+/* ===============================
+   HELFER
 ================================= */
 function collide(a, b) {
-return (
-a.x < b.x + b.w &&
-a.x + a.w > b.x &&
-a.y < b.y + b.h &&
-a.y + a.h > b.y
-);
+    return (
+        a.x < b.x + b.w &&
+        a.x + a.w > b.x &&
+        a.y < b.y + b.h &&
+        a.y + a.h > b.y
+    );
 }
 
 function updateScore() {
-document.getElementById("score").innerText = "Punkte: " + score;
+    document.getElementById("score").innerText = "Punkte: " + score;
 }
 
 function endGame() {
-running = false;
-document.getElementById("gameover").style.display = "flex";
-showScores();
+    running = false;
+    document.getElementById("gameover").style.display = "flex";
+    showScores();
 }
 
 function startGame() {
-document.getElementById("gameover").style.display = "none";
-updateScore();
-gameLoop();
+    document.getElementById("gameover").style.display = "none";
+    updateScore();
+    gameLoop();
 }
 
 /* ===============================
-HIGHSCORE
+   HIGHSCORE
 ================================= */
 function saveScore() {
-const name = document.getElementById("playerName").value || "Anonym";
-const scores = JSON.parse(localStorage.getItem("scores") || "[]");
-scores.push({ name, score });
-scores.sort((a, b) => b.score - a.score);
-localStorage.setItem("scores", JSON.stringify(scores.slice(0, 10)));
-showScores();
+    const name = document.getElementById("playerName").value || "Anonym";
+    const scores = JSON.parse(localStorage.getItem("scores") || "[]");
+    scores.push({ name, score });
+    scores.sort((a, b) => b.score - a.score);
+    localStorage.setItem("scores", JSON.stringify(scores.slice(0, 10)));
+    showScores();
 }
 
 function showScores() {
-const list = document.getElementById("highscores");
-list.innerHTML = "";
-JSON.parse(localStorage.getItem("scores") || "[]").forEach(s => {
-const li = document.createElement("li");
-li.textContent = `${s.name}: ${s.score}`;
-list.appendChild(li);
-});
+    const list = document.getElementById("highscores");
+    list.innerHTML = "";
+    JSON.parse(localStorage.getItem("scores") || "[]").forEach(s => {
+        const li = document.createElement("li");
+        li.textContent = `${s.name}: ${s.score}`;
+        list.appendChild(li);
+    });
 }
 
 function restart() {
-location.reload();
+    location.reload();
 }
