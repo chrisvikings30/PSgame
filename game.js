@@ -17,9 +17,13 @@ let speed = baseSpeed;
 const SPEED_STEP = 0.6;
 const SPEED_SCORE_INTERVAL = 1500;
 const MAX_SPEED = 9;
-
-/* Vorwärts-Boost beim Springen */
 const JUMP_FORWARD_BOOST = 1.25;
+
+/* ===============================
+   GRAVITY / JUMP
+================================= */
+const GRAVITY_GROUND = 1.2;
+const GRAVITY_AIR = 0.85;
 
 /* ===============================
    ASSETS
@@ -42,20 +46,18 @@ for (const k in files) {
     images[k].src = files[k];
     images[k].onload = () => {
         loaded++;
-        if (loaded === Object.keys(files).length) {
-            drawStartScreen();
-        }
+        if (loaded === Object.keys(files).length) drawStartScreen();
     };
 }
 
 /* ===============================
-   STRASSE / EBENEN
+   WORLD
 ================================= */
 const ROAD_Y = 380;
 const UPPER_COLLECT_Y = 240;
 
 /* ===============================
-   PLAYER (2×)
+   PLAYER
 ================================= */
 const player = {
     x: 120,
@@ -63,8 +65,7 @@ const player = {
     w: 192,
     h: 144,
     vy: 0,
-    gravity: 1.15,
-    jumpPower: -32,
+    jumpPower: -28,
     onGround: true
 };
 
@@ -77,7 +78,6 @@ let runTick = 0;
 let bgX = 0;
 let obstacles = [];
 let bonuses = [];
-
 let lastObstacleFrame = 0;
 const MIN_OBSTACLE_FRAMES = 130;
 
@@ -86,7 +86,6 @@ const MIN_OBSTACLE_FRAMES = 130;
 ================================= */
 document.addEventListener("keydown", e => {
     if (!started) return;
-
     if ((e.code === "Space" || e.code === "ArrowUp") && player.onGround) {
         player.vy = player.jumpPower;
         player.onGround = false;
@@ -95,7 +94,6 @@ document.addEventListener("keydown", e => {
 
 canvas.addEventListener("touchstart", () => {
     if (!started) return;
-
     if (player.onGround) {
         player.vy = player.jumpPower;
         player.onGround = false;
@@ -106,23 +104,16 @@ canvas.addEventListener("touchstart", () => {
    START SCREEN
 ================================= */
 function drawStartScreen() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
     ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
-
-    ctx.font = "28px Arial";
-    ctx.fillText("🏍️ MOTORRAD-RUNNER 🏍️", canvas.width / 2, 120);
-
-    ctx.font = "18px Arial";
-    ctx.fillText("PC: Springen mit LEERTASTE", canvas.width / 2, 180);
-    ctx.fillText("Handy: Springen durch TIPpen", canvas.width / 2, 210);
-    ctx.fillText("📱 Tipp: Handy QUER halten", canvas.width / 2, 250);
-
-    ctx.font = "22px Arial";
-    ctx.fillText("▶ SPIEL STARTEN", canvas.width / 2, 330);
+    ctx.font = "24px Arial";
+    ctx.fillText("PC: LEERTASTE = Springen", canvas.width / 2, 180);
+    ctx.fillText("Handy: TIPPen = Springen", canvas.width / 2, 210);
+    ctx.fillText("📱 Handy quer halten", canvas.width / 2, 250);
+    ctx.font = "26px Arial";
+    ctx.fillText("▶ SPIEL STARTEN", canvas.width / 2, 320);
 
     canvas.addEventListener("click", startFromScreen, { once: true });
     canvas.addEventListener("touchstart", startFromScreen, { once: true });
@@ -143,22 +134,17 @@ function gameLoop() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    /* SPEED */
     const level = Math.floor(score / SPEED_SCORE_INTERVAL);
     speed = Math.min(baseSpeed + level * SPEED_STEP, MAX_SPEED);
+    const effectiveSpeed = player.onGround ? speed : speed * JUMP_FORWARD_BOOST;
 
-    const effectiveSpeed = player.onGround
-        ? speed
-        : speed * JUMP_FORWARD_BOOST;
-
-    /* BACKGROUND */
     bgX -= effectiveSpeed;
     if (bgX <= -canvas.width) bgX = 0;
     draw(images.bg, bgX, 0, canvas.width, canvas.height);
     draw(images.bg, bgX + canvas.width, 0, canvas.width, canvas.height);
 
-    /* PLAYER PHYSICS */
-    player.vy += player.gravity;
+    /* PHYSICS */
+    player.vy += player.onGround ? GRAVITY_GROUND : GRAVITY_AIR;
     player.y += player.vy;
 
     const groundY = ROAD_Y - player.h;
@@ -168,7 +154,7 @@ function gameLoop() {
         player.onGround = true;
     }
 
-    /* PLAYER DRAW */
+    /* DRAW PLAYER */
     if (!player.onGround) {
         draw(images.jump, player.x, player.y, player.w, player.h);
     } else {
@@ -177,29 +163,22 @@ function gameLoop() {
             runFrame = (runFrame + 1) % 2;
             runTick = 0;
         }
-        draw(
-            runFrame === 0 ? images.run1 : images.run2,
-            player.x,
-            player.y,
-            player.w,
-            player.h
-        );
+        draw(runFrame === 0 ? images.run1 : images.run2,
+             player.x, player.y, player.w, player.h);
     }
 
-    /* OBSTACLES – NUR UNTEN */
+    /* OBSTACLES */
     obstacles.forEach((o, i) => {
         o.x -= effectiveSpeed;
         draw(images.obstacle, o.x, o.y, o.w, o.h);
-
         if (collide(player, o)) endGame();
         if (o.x + o.w < 0) obstacles.splice(i, 1);
     });
 
-    /* COLLECTABLES – OBEN & UNTEN */
+    /* BONUSES */
     bonuses.forEach((b, i) => {
         b.x -= effectiveSpeed;
         draw(b.img, b.x, b.y, b.w, b.h);
-
         if (collide(player, b)) {
             score += b.points;
             bonuses.splice(i, 1);
@@ -208,44 +187,25 @@ function gameLoop() {
         if (b.x + b.w < 0) bonuses.splice(i, 1);
     });
 
-    /* OBSTACLE SPAWN */
-    if (
-        frameCount > 120 &&
-        frameCount - lastObstacleFrame > MIN_OBSTACLE_FRAMES &&
-        Math.random() < 0.035
-    ) {
-        const h = 160;
-
+    /* SPAWNS */
+    if (frameCount > 120 && frameCount - lastObstacleFrame > MIN_OBSTACLE_FRAMES && Math.random() < 0.035) {
         obstacles.push({
             x: canvas.width + 40,
-            y: ROAD_Y - h + 12,
+            y: ROAD_Y - 160 + 12,
             w: 80,
-            h
+            h: 160
         });
-
         lastObstacleFrame = frameCount;
     }
 
-    /* BONUS SPAWN – SELTEN */
-    if (
-        frameCount > 200 &&
-        bonuses.length === 0 &&
-        Math.random() < 0.01
-    ) {
-        const types = [
-            { img: images.collect1, points: 50 },
-            { img: images.collect2, points: 25 },
-            { img: images.collect3, points: 15 }
-        ];
-        const t = types[Math.floor(Math.random() * types.length)];
-
+    if (frameCount > 200 && bonuses.length === 0 && Math.random() < 0.01) {
         bonuses.push({
             x: canvas.width,
             y: Math.random() < 0.5 ? ROAD_Y - 96 : UPPER_COLLECT_Y,
             w: 96,
             h: 96,
-            img: t.img,
-            points: t.points
+            img: images.collect1,
+            points: 25
         });
     }
 
@@ -260,12 +220,10 @@ function draw(img, x, y, w, h) {
 }
 
 function collide(a, b) {
-    return (
-        a.x < b.x + b.w &&
-        a.x + a.w > b.x &&
-        a.y < b.y + b.h &&
-        a.y + a.h > b.y
-    );
+    return a.x < b.x + b.w &&
+           a.x + a.w > b.x &&
+           a.y < b.y + b.h &&
+           a.y + a.h > b.y;
 }
 
 function updateScore() {
