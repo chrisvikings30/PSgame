@@ -1,9 +1,6 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-/* ===============================
-   BASISSTATUS
-================================= */
 let running = true;
 let score = 0;
 let frameCount = 0;
@@ -18,10 +15,10 @@ const SPEED_SCORE_INTERVAL = 1500;
 const MAX_SPEED = 9;
 
 /* ===============================
-   BILDER LADEN
+   BILDER
 ================================= */
 const images = {};
-const imageFiles = {
+const files = {
     bg: "assets/bg.png",
     run1: "assets/player_run1.png",
     run2: "assets/player_run2.png",
@@ -32,24 +29,21 @@ const imageFiles = {
     collect3: "assets/collect3.png"
 };
 
-let imagesLoaded = 0;
-const totalImages = Object.keys(imageFiles).length;
-
-for (const key in imageFiles) {
-    const img = new Image();
-    img.src = imageFiles[key];
-    img.onload = () => {
-        imagesLoaded++;
-        if (imagesLoaded === totalImages) startGame();
+let loaded = 0;
+for (const k in files) {
+    images[k] = new Image();
+    images[k].src = files[k];
+    images[k].onload = () => {
+        loaded++;
+        if (loaded === Object.keys(files).length) startGame();
     };
-    images[key] = img;
 }
 
 /* ===============================
-   BODEN & EBENEN
+   STRASSE & EBENEN
 ================================= */
-const GROUND_LINE = 340; // visuelle Straßenkante
-const UPPER_OFFSET = 90;
+const ROAD_Y = 380;
+const UPPER_OFFSET = 120;
 
 /* ===============================
    SPIELER (2×)
@@ -65,21 +59,20 @@ const player = {
     onGround: true
 };
 
+let runFrame = 0;
+let runTick = 0;
+
 /* ===============================
    OBJEKTE
 ================================= */
 let bgX = 0;
 let obstacles = [];
 let bonuses = [];
-
 let lastObstacleFrame = 0;
-const MIN_OBSTACLE_FRAMES = 120;
-
-let runFrame = 0;
-let runTick = 0;
+const MIN_OBSTACLE_FRAMES = 130;
 
 /* ===============================
-   STEUERUNG
+   INPUT
 ================================= */
 document.addEventListener("keydown", e => {
     if ((e.code === "Space" || e.code === "ArrowUp") && player.onGround) {
@@ -87,7 +80,6 @@ document.addEventListener("keydown", e => {
         player.onGround = false;
     }
 });
-
 canvas.addEventListener("touchstart", () => {
     if (player.onGround) {
         player.vy = player.jumpPower;
@@ -96,36 +88,33 @@ canvas.addEventListener("touchstart", () => {
 });
 
 /* ===============================
-   GAME LOOP
+   LOOP
 ================================= */
 function gameLoop() {
     if (!running) return;
-
     frameCount++;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    /* SPEED */
     const level = Math.floor(score / SPEED_SCORE_INTERVAL);
     speed = Math.min(baseSpeed + level * SPEED_STEP, MAX_SPEED);
 
-    /* BACKGROUND */
     bgX -= speed;
     if (bgX <= -canvas.width) bgX = 0;
     draw(images.bg, bgX, 0, canvas.width, canvas.height);
     draw(images.bg, bgX + canvas.width, 0, canvas.width, canvas.height);
 
-    /* SPIELER PHYSIK */
+    /* PLAYER */
     player.vy += player.gravity;
     player.y += player.vy;
 
-    const groundY = GROUND_LINE - player.h;
+    const groundY = ROAD_Y - player.h;
     if (player.y >= groundY) {
         player.y = groundY;
         player.vy = 0;
         player.onGround = true;
     }
 
-    /* SPIELER ZEICHNEN */
     if (!player.onGround) {
         draw(images.jump, player.x, player.y, player.w, player.h);
     } else {
@@ -147,11 +136,10 @@ function gameLoop() {
             if (o.level === "ground") endGame();
             if (o.level === "upper" && !player.onGround) endGame();
         }
-
         if (o.x + o.w < 0) obstacles.splice(i, 1);
     });
 
-    /* BONUS */
+    /* BONUSES (HALBIERT) */
     bonuses.forEach((b, i) => {
         b.x -= speed;
         draw(b.img, b.x, b.y, b.w, b.h);
@@ -176,25 +164,36 @@ function gameLoop() {
         obstacles.push({
             x: canvas.width + 40,
             y: isUpper
-                ? GROUND_LINE - h - UPPER_OFFSET
-                : GROUND_LINE - h,
+                ? ROAD_Y - h - UPPER_OFFSET
+                : ROAD_Y - h,
             w: 80,
-            h: h,
+            h,
             level: isUpper ? "upper" : "ground"
         });
 
         lastObstacleFrame = frameCount;
     }
 
-    /* BONUS SPAWN */
-    if (frameCount > 120 && Math.random() < 0.02) {
+    /* BONUS SPAWN – REDUZIERT */
+    if (
+        frameCount > 200 &&
+        bonuses.length === 0 &&
+        Math.random() < 0.01
+    ) {
+        const types = [
+            { img: images.collect1, points: 50 },
+            { img: images.collect2, points: 25 },
+            { img: images.collect3, points: 15 }
+        ];
+        const t = types[Math.floor(Math.random() * types.length)];
+
         bonuses.push({
             x: canvas.width,
-            y: GROUND_LINE - 96,
+            y: ROAD_Y - 96,
             w: 96,
             h: 96,
-            img: images.collect1,
-            points: 25
+            img: t.img,
+            points: t.points
         });
     }
 
@@ -202,7 +201,7 @@ function gameLoop() {
 }
 
 /* ===============================
-   HILFSFUNKTIONEN
+   HILFE
 ================================= */
 function draw(img, x, y, w, h) {
     ctx.drawImage(img, Math.round(x), Math.round(y), w, h);
@@ -224,36 +223,12 @@ function updateScore() {
 function endGame() {
     running = false;
     document.getElementById("gameover").style.display = "flex";
-    showScores();
 }
 
 function startGame() {
-    player.y = GROUND_LINE - player.h;
-    document.getElementById("gameover").style.display = "none";
+    player.y = ROAD_Y - player.h;
     updateScore();
     gameLoop();
-}
-
-/* ===============================
-   HIGHSCORE
-================================= */
-function saveScore() {
-    const name = document.getElementById("playerName").value || "Anonym";
-    const scores = JSON.parse(localStorage.getItem("scores") || "[]");
-    scores.push({ name, score });
-    scores.sort((a, b) => b.score - a.score);
-    localStorage.setItem("scores", JSON.stringify(scores.slice(0, 10)));
-    showScores();
-}
-
-function showScores() {
-    const list = document.getElementById("highscores");
-    list.innerHTML = "";
-    JSON.parse(localStorage.getItem("scores") || "[]").forEach(s => {
-        const li = document.createElement("li");
-        li.textContent = `${s.name}: ${s.score}`;
-        list.appendChild(li);
-    });
 }
 
 function restart() {
