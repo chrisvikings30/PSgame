@@ -38,7 +38,7 @@ const player = {
   w: 192,
   h: 144,
   vy: 0,
-  jumpPower: -26,   // EIN feste Sprunghöhe
+  jumpPower: -20,   // EIN feste Sprunghöhe
   onGround: true
 };
 
@@ -245,3 +245,4 @@ function endGame() {
 function restart() {
   location.reload();
 }
+
