@@ -169,7 +169,7 @@ function gameLoop() {
 
         obstacles.push({
             x: canvas.width + 40,
-            y: ROAD_Y - h,
+            y: ROAD_Y - h + 12,
             w: 80,
             h: h
         });
@@ -239,3 +239,4 @@ function startGame() {
 function restart() {
     location.reload();
 }
+
