@@ -4,7 +4,8 @@ const ctx = canvas.getContext("2d");
 /* ===============================
    GAME STATE
 ================================= */
-let running = true;
+let running = false;
+let started = false;
 let score = 0;
 let frameCount = 0;
 
@@ -16,6 +17,9 @@ let speed = baseSpeed;
 const SPEED_STEP = 0.6;
 const SPEED_SCORE_INTERVAL = 1500;
 const MAX_SPEED = 9;
+
+/* Vorwärts-Boost beim Springen */
+const JUMP_FORWARD_BOOST = 1.25;
 
 /* ===============================
    ASSETS
@@ -38,15 +42,17 @@ for (const k in files) {
     images[k].src = files[k];
     images[k].onload = () => {
         loaded++;
-        if (loaded === Object.keys(files).length) startGame();
+        if (loaded === Object.keys(files).length) {
+            drawStartScreen();
+        }
     };
 }
 
 /* ===============================
    STRASSE / EBENEN
 ================================= */
-const ROAD_Y = 380;          // optische Straße
-const UPPER_COLLECT_Y = 240; // Sammel-Ebene oben
+const ROAD_Y = 380;
+const UPPER_COLLECT_Y = 240;
 
 /* ===============================
    PLAYER (2×)
@@ -57,8 +63,8 @@ const player = {
     w: 192,
     h: 144,
     vy: 0,
-    gravity: 1.2,
-    jumpPower: -28,
+    gravity: 1.15,
+    jumpPower: -32,
     onGround: true
 };
 
@@ -79,6 +85,8 @@ const MIN_OBSTACLE_FRAMES = 130;
    INPUT
 ================================= */
 document.addEventListener("keydown", e => {
+    if (!started) return;
+
     if ((e.code === "Space" || e.code === "ArrowUp") && player.onGround) {
         player.vy = player.jumpPower;
         player.onGround = false;
@@ -86,11 +94,45 @@ document.addEventListener("keydown", e => {
 });
 
 canvas.addEventListener("touchstart", () => {
+    if (!started) return;
+
     if (player.onGround) {
         player.vy = player.jumpPower;
         player.onGround = false;
     }
 });
+
+/* ===============================
+   START SCREEN
+================================= */
+function drawStartScreen() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "center";
+
+    ctx.font = "28px Arial";
+    ctx.fillText("🏍️ MOTORRAD-RUNNER 🏍️", canvas.width / 2, 120);
+
+    ctx.font = "18px Arial";
+    ctx.fillText("PC: Springen mit LEERTASTE", canvas.width / 2, 180);
+    ctx.fillText("Handy: Springen durch TIPpen", canvas.width / 2, 210);
+    ctx.fillText("📱 Tipp: Handy QUER halten", canvas.width / 2, 250);
+
+    ctx.font = "22px Arial";
+    ctx.fillText("▶ SPIEL STARTEN", canvas.width / 2, 330);
+
+    canvas.addEventListener("click", startFromScreen, { once: true });
+    canvas.addEventListener("touchstart", startFromScreen, { once: true });
+}
+
+function startFromScreen() {
+    started = true;
+    running = true;
+    startGame();
+}
 
 /* ===============================
    GAME LOOP
@@ -105,8 +147,12 @@ function gameLoop() {
     const level = Math.floor(score / SPEED_SCORE_INTERVAL);
     speed = Math.min(baseSpeed + level * SPEED_STEP, MAX_SPEED);
 
+    const effectiveSpeed = player.onGround
+        ? speed
+        : speed * JUMP_FORWARD_BOOST;
+
     /* BACKGROUND */
-    bgX -= speed;
+    bgX -= effectiveSpeed;
     if (bgX <= -canvas.width) bgX = 0;
     draw(images.bg, bgX, 0, canvas.width, canvas.height);
     draw(images.bg, bgX + canvas.width, 0, canvas.width, canvas.height);
@@ -133,22 +179,25 @@ function gameLoop() {
         }
         draw(
             runFrame === 0 ? images.run1 : images.run2,
-            player.x, player.y, player.w, player.h
+            player.x,
+            player.y,
+            player.w,
+            player.h
         );
     }
 
-    /* OBSTACLES (NUR UNTEN!) */
+    /* OBSTACLES – NUR UNTEN */
     obstacles.forEach((o, i) => {
-        o.x -= speed;
+        o.x -= effectiveSpeed;
         draw(images.obstacle, o.x, o.y, o.w, o.h);
 
         if (collide(player, o)) endGame();
         if (o.x + o.w < 0) obstacles.splice(i, 1);
     });
 
-    /* COLLECTABLES (OBEN + UNTEN) */
+    /* COLLECTABLES – OBEN & UNTEN */
     bonuses.forEach((b, i) => {
-        b.x -= speed;
+        b.x -= effectiveSpeed;
         draw(b.img, b.x, b.y, b.w, b.h);
 
         if (collide(player, b)) {
@@ -159,7 +208,7 @@ function gameLoop() {
         if (b.x + b.w < 0) bonuses.splice(i, 1);
     });
 
-    /* OBSTACLE SPAWN – NUR BODEN */
+    /* OBSTACLE SPAWN */
     if (
         frameCount > 120 &&
         frameCount - lastObstacleFrame > MIN_OBSTACLE_FRAMES &&
@@ -171,13 +220,13 @@ function gameLoop() {
             x: canvas.width + 40,
             y: ROAD_Y - h + 12,
             w: 80,
-            h: h
+            h
         });
 
         lastObstacleFrame = frameCount;
     }
 
-    /* BONUS SPAWN – REDUZIERT + RISIKO */
+    /* BONUS SPAWN – SELTEN */
     if (
         frameCount > 200 &&
         bonuses.length === 0 &&
@@ -192,9 +241,7 @@ function gameLoop() {
 
         bonuses.push({
             x: canvas.width,
-            y: Math.random() < 0.5
-                ? ROAD_Y - 96          // unten
-                : UPPER_COLLECT_Y,    // oben (springen!)
+            y: Math.random() < 0.5 ? ROAD_Y - 96 : UPPER_COLLECT_Y,
             w: 96,
             h: 96,
             img: t.img,
@@ -231,6 +278,10 @@ function endGame() {
 }
 
 function startGame() {
+    score = 0;
+    frameCount = 0;
+    obstacles = [];
+    bonuses = [];
     player.y = ROAD_Y - player.h;
     updateScore();
     gameLoop();
@@ -239,4 +290,3 @@ function startGame() {
 function restart() {
     location.reload();
 }
-
