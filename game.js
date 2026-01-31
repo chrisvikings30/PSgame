@@ -10,11 +10,11 @@ let score = 0;
 let frame = 0;
 
 /* ======================
-   SPEED / JUMP
+   SPEED / DIFFICULTY
 ====================== */
-let speed = 4;
+const BASE_SPEED = 4;
 const SPEED_STEP = 0.6;
-const SPEED_INTERVAL = 1500;
+const SPEED_INTERVAL = 1500; // ALLE 1500 PUNKTE
 const MAX_SPEED = 9;
 
 const JUMP_FORWARD_BOOST = 1.55;
@@ -30,7 +30,7 @@ const JUMP_CUT = 0.4;
    WORLD
 ====================== */
 const ROAD_Y = 380;
-const UPPER_COLLECT_Y = 240;
+const UPPER_COLLECT_Y = 160; // DEUTLICH HÖHER → SPRINGEN NÖTIG
 
 /* ======================
    PLAYER
@@ -135,8 +135,9 @@ function loop() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Geschwindigkeit exakt alle 1500 Punkte erhöhen
   const level = Math.floor(score / SPEED_INTERVAL);
-  speed = Math.min(4 + level * SPEED_STEP, MAX_SPEED);
+  const speed = Math.min(BASE_SPEED + level * SPEED_STEP, MAX_SPEED);
   const effSpeed = player.onGround ? speed : speed * JUMP_FORWARD_BOOST;
 
   /* Background */
@@ -162,7 +163,7 @@ function loop() {
     : images.jump;
   ctx.drawImage(img, player.x, player.y, player.w, player.h);
 
-  /* Obstacles */
+  /* Obstacles (nur unten) */
   obstacles.forEach((o, i) => {
     o.x -= effSpeed;
     ctx.drawImage(images.obstacle, o.x, o.y, o.w, o.h);
@@ -170,7 +171,7 @@ function loop() {
     if (o.x + o.w < 0) obstacles.splice(i, 1);
   });
 
-  /* Collectibles */
+  /* Collectibles (unten ODER oben) */
   collectibles.forEach((c, i) => {
     c.x -= effSpeed;
     ctx.drawImage(c.img, c.x, c.y, c.w, c.h);
@@ -183,7 +184,7 @@ function loop() {
     if (c.x + c.w < 0) collectibles.splice(i, 1);
   });
 
-  /* Spawn Obstacle (unten) */
+  /* Spawn Obstacle */
   if (frame - lastObstacle > 140 && Math.random() < 0.03) {
     obstacles.push({
       x: canvas.width,
@@ -194,11 +195,11 @@ function loop() {
     lastObstacle = frame;
   }
 
-  /* Spawn Collectible (unten ODER oben) */
+  /* Spawn Collectible */
   if (
-    frame - lastCollectible > 220 &&
+    frame - lastCollectible > 260 &&
     collectibles.length < 2 &&
-    Math.random() < 0.035
+    Math.random() < 0.03
   ) {
     collectibles.push({
       x: canvas.width + 40,
