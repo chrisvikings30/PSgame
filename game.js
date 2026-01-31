@@ -14,7 +14,7 @@ let frame = 0;
 ====================== */
 const BASE_SPEED = 4;
 const SPEED_STEP = 0.6;
-const SPEED_INTERVAL = 1500; // ALLE 1500 PUNKTE
+const SPEED_INTERVAL = 1500;
 const MAX_SPEED = 9;
 
 const JUMP_FORWARD_BOOST = 1.55;
@@ -30,7 +30,7 @@ const JUMP_CUT = 0.4;
    WORLD
 ====================== */
 const ROAD_Y = 380;
-const UPPER_COLLECT_Y = 160; // DEUTLICH HÖHER → SPRINGEN NÖTIG
+const UPPER_COLLECT_Y = 160;
 
 /* ======================
    PLAYER
@@ -117,12 +117,17 @@ canvas.addEventListener("touchend", () => {
 function drawStartScreen() {
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+
   ctx.fillStyle = "#fff";
   ctx.textAlign = "center";
   ctx.font = "22px Arial";
-  ctx.fillText("PC: Leertaste = Springen", 450, 180);
-  ctx.fillText("Handy: Tippen / Halten", 450, 210);
-  ctx.fillText("▶ SPIEL STARTEN", 450, 300);
+  ctx.fillText("PC: Leertaste = Springen", 450, 170);
+  ctx.fillText("Handy: Tippen / Halten = Springen", 450, 200);
+  ctx.fillText("📱 Tipp: Handy QUER halten", 450, 240);
+
+  ctx.font = "26px Arial";
+  ctx.fillText("▶ SPIEL STARTEN", 450, 310);
+
   canvas.onclick = startGame;
 }
 
@@ -135,7 +140,6 @@ function loop() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Geschwindigkeit exakt alle 1500 Punkte erhöhen
   const level = Math.floor(score / SPEED_INTERVAL);
   const speed = Math.min(BASE_SPEED + level * SPEED_STEP, MAX_SPEED);
   const effSpeed = player.onGround ? speed : speed * JUMP_FORWARD_BOOST;
@@ -163,15 +167,16 @@ function loop() {
     : images.jump;
   ctx.drawImage(img, player.x, player.y, player.w, player.h);
 
-  /* Obstacles (nur unten) */
+  /* Obstacles */
   obstacles.forEach((o, i) => {
     o.x -= effSpeed;
     ctx.drawImage(images.obstacle, o.x, o.y, o.w, o.h);
+
     if (collideObstacle(player, o)) endGame();
     if (o.x + o.w < 0) obstacles.splice(i, 1);
   });
 
-  /* Collectibles (unten ODER oben) */
+  /* Collectibles */
   collectibles.forEach((c, i) => {
     c.x -= effSpeed;
     ctx.drawImage(c.img, c.x, c.y, c.w, c.h);
@@ -184,7 +189,7 @@ function loop() {
     if (c.x + c.w < 0) collectibles.splice(i, 1);
   });
 
-  /* Spawn Obstacle */
+  /* Spawn obstacle */
   if (frame - lastObstacle > 140 && Math.random() < 0.03) {
     obstacles.push({
       x: canvas.width,
@@ -195,7 +200,7 @@ function loop() {
     lastObstacle = frame;
   }
 
-  /* Spawn Collectible */
+  /* Spawn collectible */
   if (
     frame - lastCollectible > 260 &&
     collectibles.length < 2 &&
@@ -233,10 +238,10 @@ function collide(a, b) {
 
 function collideObstacle(p, o) {
   const hitbox = {
-    x: o.x + 14,
-    y: o.y + 18,
-    w: o.w - 28,
-    h: o.h - 30
+    x: o.x + 24,
+    y: o.y + 35,
+    w: o.w - 48,
+    h: o.h - 60
   };
   return collide(p, hitbox);
 }
