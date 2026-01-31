@@ -43,7 +43,7 @@ const player = {
 };
 
 /* ======================
-   ASSETS
+   ASSETS (IMAGES)
 ====================== */
 const images = {};
 const assets = {
@@ -68,12 +68,14 @@ music.volume = 0.5;
    LOAD IMAGES
 ====================== */
 let loaded = 0;
-Object.keys(assets).forEach(k => {
-  images[k] = new Image();
-  images[k].src = assets[k];
-  images[k].onload = () => {
+Object.keys(assets).forEach(key => {
+  images[key] = new Image();
+  images[key].src = assets[key];
+  images[key].onload = () => {
     loaded++;
-    if (loaded === Object.keys(assets).length) drawStartScreen();
+    if (loaded === Object.keys(assets).length) {
+      drawStartScreen();
+    }
   };
 });
 
@@ -87,22 +89,39 @@ let lastObstacle = 0;
 let lastCollectible = 0;
 
 /* ======================
-   INPUT
+   INPUT: KEYBOARD
 ====================== */
 document.addEventListener("keydown", e => {
   if (!started) return;
+
   if ((e.code === "Space" || e.code === "ArrowUp") && player.onGround) {
     player.vy = player.jumpPower;
     player.onGround = false;
   }
 });
 
-canvas.addEventListener("touchstart", e => {
-  e.preventDefault(); // WICHTIG gegen Ghost-Clicks
-  if (!started || !player.onGround) return;
-  player.vy = player.jumpPower;
-  player.onGround = false;
-});
+/* ======================
+   INPUT: TOUCH (START + JUMP)
+====================== */
+canvas.addEventListener(
+  "touchstart",
+  e => {
+    e.preventDefault();
+
+    // Spiel starten per Touch
+    if (!started) {
+      startGame();
+      return;
+    }
+
+    // Springen
+    if (player.onGround) {
+      player.vy = player.jumpPower;
+      player.onGround = false;
+    }
+  },
+  { passive: false }
+);
 
 /* ======================
    START SCREEN
@@ -121,6 +140,7 @@ function drawStartScreen() {
   ctx.font = "26px Arial";
   ctx.fillText("▶ SPIEL STARTEN", 450, 310);
 
+  // PC-Start
   canvas.onclick = startGame;
 }
 
@@ -133,6 +153,7 @@ function loop() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Geschwindigkeit nur alle 1500 Punkte
   const level = Math.floor(score / SPEED_INTERVAL);
   const speed = Math.min(BASE_SPEED + level * SPEED_STEP, MAX_SPEED);
 
@@ -155,14 +176,18 @@ function loop() {
 
   /* Player draw */
   const sprite = player.onGround
-    ? (frame % 20 < 10 ? images.run1 : images.run2)
+    ? frame % 20 < 10
+      ? images.run1
+      : images.run2
     : images.jump;
+
   ctx.drawImage(sprite, player.x, player.y, player.w, player.h);
 
   /* Obstacles */
   obstacles.forEach((o, i) => {
     o.x -= speed;
     ctx.drawImage(images.obstacle, o.x, o.y, o.w, o.h);
+
     if (collideObstacle(player, o)) endGame();
     if (o.x + o.w < 0) obstacles.splice(i, 1);
   });
@@ -171,14 +196,16 @@ function loop() {
   collectibles.forEach((c, i) => {
     c.x -= speed;
     ctx.drawImage(c.img, c.x, c.y, c.w, c.h);
+
     if (collide(player, c)) {
       score += 100;
       collectibles.splice(i, 1);
     }
+
     if (c.x + c.w < 0) collectibles.splice(i, 1);
   });
 
-  /* Spawns */
+  /* Spawn obstacle */
   if (frame - lastObstacle > 140 && Math.random() < 0.03) {
     obstacles.push({
       x: canvas.width,
@@ -189,6 +216,7 @@ function loop() {
     lastObstacle = frame;
   }
 
+  /* Spawn collectible */
   if (
     frame - lastCollectible > 260 &&
     collectibles.length < 2 &&
@@ -238,19 +266,18 @@ function collideObstacle(p, o) {
    GAME FLOW
 ====================== */
 function startGame() {
-  if (started) return; // <<< GANZ WICHTIG
+  if (started) return; // Schutz gegen Mehrfachstart
   started = true;
   running = true;
 
-  // Startscreen deaktivieren
-  canvas.onclick = null;
+  canvas.onclick = null; // Startscreen deaktivieren
 
   score = 0;
+  frame = 0;
   obstacles = [];
   collectibles = [];
   player.y = ROAD_Y - player.h;
 
-  // Musik erst nach User-Interaktion
   music.currentTime = 0;
   music.play();
 
@@ -260,11 +287,6 @@ function startGame() {
 function endGame() {
   running = false;
   music.pause();
-
-  // Highscore-Feld ausblenden (falls vorhanden)
-  const nameInput = document.getElementById("playerName");
-  if (nameInput) nameInput.style.display = "none";
-
   document.getElementById("gameover").style.display = "flex";
 }
 
