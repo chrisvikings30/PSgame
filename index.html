@@ -1,27 +1,92 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<title>Plattenspielers – Das Spiel</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <title>Plattenspielers – Das Spiel</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            color: #fff;
+            font-family: Arial, Helvetica, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-wrapper {
+            position: relative;
+        }
+
+        canvas {
+            border: 2px solid #fff;
+            background: #000;
+            display: block;
+        }
+
+        #score {
+            position: absolute;
+            bottom: -30px;
+            right: 10px;
+            font-size: 16px;
+        }
+
+        #gameover {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            text-align: center;
+        }
+
+        #gameover input {
+            padding: 6px;
+            font-size: 16px;
+            width: 180px;
+            text-align: center;
+        }
+
+        #gameover button {
+            padding: 8px 14px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #highscores {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+    </style>
 </head>
 <body>
 
 <div id="game-wrapper">
-<canvas id="game" width="900" height="450"></canvas>
 
-<div id="hud">
-<span id="score">Punkte: 0</span>
-</div>
+    <canvas id="game" width="900" height="450"></canvas>
 
-<!-- WICHTIG: display:none von Anfang an -->
-<div id="gameover" style="display:none;">
-<h1>Game Over</h1>
-<input id="playerName" placeholder="Name">
-<button onclick="saveScore()">Speichern</button>
-<ul id="highscores"></ul>
-<button onclick="restart()">Nochmal spielen</button>
-</div>
+    <div id="score">Punkte: 0</div>
+
+    <div id="gameover">
+        <h2>Game Over</h2>
+
+        <input id="playerName" type="text" placeholder="Name eingeben">
+
+        <button id="saveScore">Speichern</button>
+
+        <div id="highscores"></div>
+
+        <button onclick="restart()">Nochmal spielen</button>
+    </div>
+
 </div>
 
 <script src="game.js"></script>
