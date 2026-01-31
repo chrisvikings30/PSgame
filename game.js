@@ -17,7 +17,7 @@ const SPEED_STEP = 0.6;
 const SPEED_INTERVAL = 1500;
 const MAX_SPEED = 9;
 
-const JUMP_FORWARD_BOOST = 1.55; // MEHR WEITE IN DER LUFT
+const JUMP_FORWARD_BOOST = 1.55;
 
 /* ======================
    PHYSICS
@@ -30,6 +30,7 @@ const JUMP_CUT = 0.4;
    WORLD
 ====================== */
 const ROAD_Y = 380;
+const UPPER_COLLECT_Y = 240;
 
 /* ======================
    PLAYER
@@ -54,7 +55,10 @@ const assets = {
   run1: "assets/player_run1.png",
   run2: "assets/player_run2.png",
   jump: "assets/player_jump.png",
-  obstacle: "assets/obstacle.png"
+  obstacle: "assets/obstacle.png",
+  collect1: "assets/collect1.png",
+  collect2: "assets/collect2.png",
+  collect3: "assets/collect3.png"
 };
 
 let loaded = 0;
@@ -72,7 +76,9 @@ Object.keys(assets).forEach(k => {
 ====================== */
 let bgX = 0;
 let obstacles = [];
+let collectibles = [];
 let lastObstacle = 0;
+let lastCollectible = 0;
 
 /* ======================
    INPUT
@@ -116,10 +122,7 @@ function drawStartScreen() {
   ctx.font = "22px Arial";
   ctx.fillText("PC: Leertaste = Springen", 450, 180);
   ctx.fillText("Handy: Tippen / Halten", 450, 210);
-  ctx.fillText("📱 Handy quer halten", 450, 250);
-  ctx.font = "26px Arial";
-  ctx.fillText("▶ SPIEL STARTEN", 450, 320);
-
+  ctx.fillText("▶ SPIEL STARTEN", 450, 300);
   canvas.onclick = startGame;
 }
 
@@ -136,13 +139,13 @@ function loop() {
   speed = Math.min(4 + level * SPEED_STEP, MAX_SPEED);
   const effSpeed = player.onGround ? speed : speed * JUMP_FORWARD_BOOST;
 
-  // Background
+  /* Background */
   bgX -= effSpeed;
   if (bgX <= -canvas.width) bgX = 0;
   ctx.drawImage(images.bg, bgX, 0, canvas.width, canvas.height);
   ctx.drawImage(images.bg, bgX + canvas.width, 0, canvas.width, canvas.height);
 
-  // Player physics
+  /* Player physics */
   player.vy += player.onGround ? GRAVITY_GROUND : GRAVITY_AIR;
   player.y += player.vy;
 
@@ -153,22 +156,34 @@ function loop() {
     player.onGround = true;
   }
 
-  // Player draw
+  /* Player draw */
   const img = player.onGround
     ? (frame % 20 < 10 ? images.run1 : images.run2)
     : images.jump;
   ctx.drawImage(img, player.x, player.y, player.w, player.h);
 
-  // Obstacles
+  /* Obstacles */
   obstacles.forEach((o, i) => {
     o.x -= effSpeed;
     ctx.drawImage(images.obstacle, o.x, o.y, o.w, o.h);
-
-    if (collidePlayerObstacle(player, o)) endGame();
+    if (collideObstacle(player, o)) endGame();
     if (o.x + o.w < 0) obstacles.splice(i, 1);
   });
 
-  // Spawn obstacle
+  /* Collectibles */
+  collectibles.forEach((c, i) => {
+    c.x -= effSpeed;
+    ctx.drawImage(c.img, c.x, c.y, c.w, c.h);
+
+    if (collide(player, c)) {
+      score += 100;
+      collectibles.splice(i, 1);
+    }
+
+    if (c.x + c.w < 0) collectibles.splice(i, 1);
+  });
+
+  /* Spawn Obstacle (unten) */
   if (frame - lastObstacle > 140 && Math.random() < 0.03) {
     obstacles.push({
       x: canvas.width,
@@ -179,6 +194,24 @@ function loop() {
     lastObstacle = frame;
   }
 
+  /* Spawn Collectible (unten ODER oben) */
+  if (
+    frame - lastCollectible > 220 &&
+    collectibles.length < 2 &&
+    Math.random() < 0.035
+  ) {
+    collectibles.push({
+      x: canvas.width + 40,
+      y: Math.random() < 0.5 ? ROAD_Y - 90 : UPPER_COLLECT_Y,
+      w: 64,
+      h: 64,
+      img: images[
+        ["collect1", "collect2", "collect3"][Math.floor(Math.random() * 3)]
+      ]
+    });
+    lastCollectible = frame;
+  }
+
   score++;
   document.getElementById("score").innerText = "Punkte: " + score;
 
@@ -186,22 +219,25 @@ function loop() {
 }
 
 /* ======================
-   FAIR HITBOX
+   COLLISION
 ====================== */
-function collidePlayerObstacle(p, o) {
+function collide(a, b) {
+  return (
+    a.x < b.x + b.w &&
+    a.x + a.w > b.x &&
+    a.y < b.y + b.h &&
+    a.y + a.h > b.y
+  );
+}
+
+function collideObstacle(p, o) {
   const hitbox = {
     x: o.x + 14,
     y: o.y + 18,
     w: o.w - 28,
     h: o.h - 30
   };
-
-  return (
-    p.x < hitbox.x + hitbox.w &&
-    p.x + p.w > hitbox.x &&
-    p.y < hitbox.y + hitbox.h &&
-    p.y + p.h > hitbox.y
-  );
+  return collide(p, hitbox);
 }
 
 /* ======================
@@ -212,6 +248,7 @@ function startGame() {
   running = true;
   score = 0;
   obstacles = [];
+  collectibles = [];
   player.y = ROAD_Y - player.h;
   loop();
 }
