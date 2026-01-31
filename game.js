@@ -2,22 +2,23 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 /* ===============================
-STATUS
+BASISSTATUS
 ================================= */
 let running = true;
 let score = 0;
-let speed = 4;
 let frameCount = 0;
 
 /* ===============================
-SPEED-LOGIK
+SPEED
 ================================= */
-const SPEED_STEP = 0.5;
+let baseSpeed = 4;
+let speed = baseSpeed;
+const SPEED_STEP = 0.6;
 const SPEED_SCORE_INTERVAL = 1500;
-const MAX_SPEED = 8;
+const MAX_SPEED = 9;
 
 /* ===============================
-IMAGE LOADER
+BILDER LADEN
 ================================= */
 const images = {};
 const imageFiles = {
@@ -47,20 +48,20 @@ images[key] = img;
 /* ===============================
 EBENEN
 ================================= */
-const GROUND_Y = 320;
-const UPPER_Y = 260;
+const GROUND_Y = 300;
+const UPPER_Y = 210;
 
 /* ===============================
-SPIELER
+SPIELER (2× GRÖSSE)
 ================================= */
 const player = {
-x: 100,
+x: 120,
 y: GROUND_Y,
-w: 96,
-h: 72,
+w: 192, // vorher 96
+h: 144, // vorher 72
 vy: 0,
-gravity: 1.2,
-jumpPower: -18,
+gravity: 1.4,
+jumpPower: -22,
 onGround: true
 };
 
@@ -74,8 +75,9 @@ let bgX = 0;
 let obstacles = [];
 let bonuses = [];
 
-let lastObstacleX = 0;
-const MIN_OBSTACLE_DISTANCE = 260;
+/* Abstand über Zeit (kein Bug mehr!) */
+let lastObstacleFrame = 0;
+const MIN_OBSTACLE_FRAMES = 120; // genug Platz für große Figur
 
 /* ===============================
 STEUERUNG
@@ -103,17 +105,17 @@ if (!running) return;
 frameCount++;
 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-/* ---------- SPEED ERHÖHEN ---------- */
-const speedLevel = Math.floor(score / SPEED_SCORE_INTERVAL);
-speed = Math.min(4 + speedLevel * SPEED_STEP, MAX_SPEED);
+/* SPEED-ERHÖHUNG */
+const level = Math.floor(score / SPEED_SCORE_INTERVAL);
+speed = Math.min(baseSpeed + level * SPEED_STEP, MAX_SPEED);
 
-/* ---------- HINTERGRUND ---------- */
+/* HINTERGRUND */
 bgX -= speed;
 if (bgX <= -canvas.width) bgX = 0;
 ctx.drawImage(images.bg, bgX, 0, canvas.width, canvas.height);
 ctx.drawImage(images.bg, bgX + canvas.width, 0, canvas.width, canvas.height);
 
-/* ---------- SPIELER PHYSIK ---------- */
+/* SPIELER PHYSIK */
 player.vy += player.gravity;
 player.y += player.vy;
 
@@ -123,12 +125,12 @@ player.vy = 0;
 player.onGround = true;
 }
 
-/* ---------- SPIELER ZEICHNEN ---------- */
+/* SPIELER ZEICHNEN */
 if (!player.onGround) {
 ctx.drawImage(images.jump, player.x, player.y, player.w, player.h);
 } else {
 runTick++;
-if (runTick > 8) {
+if (runTick > 7) {
 runFrame = (runFrame + 1) % 2;
 runTick = 0;
 }
@@ -138,7 +140,7 @@ player.x, player.y, player.w, player.h
 );
 }
 
-/* ---------- HINDERNISSE ---------- */
+/* OBSTACLES */
 obstacles.forEach((o, i) => {
 o.x -= speed;
 ctx.drawImage(images.obstacle, o.x, o.y, o.w, o.h);
@@ -147,7 +149,7 @@ if (collide(player, o)) endGame();
 if (o.x + o.w < 0) obstacles.splice(i, 1);
 });
 
-/* ---------- BONUS ---------- */
+/* COLLECTABLES (2× GRÖSSE) */
 bonuses.forEach((b, i) => {
 b.x -= speed;
 ctx.drawImage(b.img, b.x, b.y, b.w, b.h);
@@ -157,38 +159,43 @@ score += b.points;
 bonuses.splice(i, 1);
 updateScore();
 }
-
 if (b.x + b.w < 0) bonuses.splice(i, 1);
 });
 
-/* ---------- HINDERNIS-SPAWN ---------- */
-if (frameCount > 90 && Math.random() < 0.02) {
-const spawnX = canvas.width;
-if (spawnX - lastObstacleX > MIN_OBSTACLE_DISTANCE) {
-const levelY = Math.random() < 0.5 ? GROUND_Y - 80 : UPPER_Y;
+/* OBSTACLE SPAWN (ROBUST) */
+if (
+frameCount > 120 &&
+frameCount - lastObstacleFrame > MIN_OBSTACLE_FRAMES &&
+Math.random() < 0.035
+) {
+const levelY = Math.random() < 0.5
+? GROUND_Y - 160 // Bodenhindernis (2×)
+: UPPER_Y;
+
 obstacles.push({
-x: spawnX,
+x: canvas.width + 40,
 y: levelY,
-w: 40,
-h: 80
+w: 80, // vorher 40
+h: 160 // vorher 80
 });
-lastObstacleX = spawnX;
-}
+
+lastObstacleFrame = frameCount;
 }
 
-/* ---------- BONUS-SPAWN ---------- */
-if (frameCount > 90 && Math.random() < 0.015) {
+/* BONUS SPAWN */
+if (frameCount > 120 && Math.random() < 0.02) {
 const types = [
 { img: images.collect1, points: 50 },
 { img: images.collect2, points: 25 },
 { img: images.collect3, points: 15 }
 ];
 const t = types[Math.floor(Math.random() * types.length)];
+
 bonuses.push({
 x: canvas.width,
-y: Math.random() < 0.5 ? UPPER_Y : GROUND_Y,
-w: 48,
-h: 48,
+y: Math.random() < 0.5 ? UPPER_Y : GROUND_Y - 40,
+w: 96, // vorher 48
+h: 96, // vorher 48
 img: t.img,
 points: t.points
 });
