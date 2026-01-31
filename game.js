@@ -58,11 +58,15 @@ const assets = {
 };
 
 /* ======================
-   MUSIC
+   MUSIC (iOS SAFE)
 ====================== */
-const music = new Audio("assets/music.mp3");
+const music = new Audio();
+music.src = "assets/music.mp3";
 music.loop = true;
 music.volume = 0.5;
+music.preload = "auto";
+
+let musicUnlocked = false;
 
 /* ======================
    LOAD IMAGES
@@ -108,7 +112,16 @@ canvas.addEventListener(
   e => {
     e.preventDefault();
 
-    // Spiel starten per Touch
+    // Musik einmalig entsperren (WICHTIG für iOS)
+    if (!musicUnlocked) {
+      music.play().then(() => {
+        music.pause();
+        music.currentTime = 0;
+        musicUnlocked = true;
+      }).catch(() => {});
+    }
+
+    // Spiel starten
     if (!started) {
       startGame();
       return;
@@ -140,7 +153,6 @@ function drawStartScreen() {
   ctx.font = "26px Arial";
   ctx.fillText("▶ SPIEL STARTEN", 450, 310);
 
-  // PC-Start
   canvas.onclick = startGame;
 }
 
@@ -153,7 +165,6 @@ function loop() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Geschwindigkeit nur alle 1500 Punkte
   const level = Math.floor(score / SPEED_INTERVAL);
   const speed = Math.min(BASE_SPEED + level * SPEED_STEP, MAX_SPEED);
 
@@ -266,11 +277,11 @@ function collideObstacle(p, o) {
    GAME FLOW
 ====================== */
 function startGame() {
-  if (started) return; // Schutz gegen Mehrfachstart
+  if (started) return;
   started = true;
   running = true;
 
-  canvas.onclick = null; // Startscreen deaktivieren
+  canvas.onclick = null;
 
   score = 0;
   frame = 0;
@@ -278,8 +289,9 @@ function startGame() {
   collectibles = [];
   player.y = ROAD_Y - player.h;
 
+  // Musik sicher starten
   music.currentTime = 0;
-  music.play();
+  music.play().catch(() => {});
 
   loop();
 }
@@ -287,6 +299,7 @@ function startGame() {
 function endGame() {
   running = false;
   music.pause();
+
   document.getElementById("gameover").style.display = "flex";
 }
 
