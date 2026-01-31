@@ -18,10 +18,10 @@ const SPEED_INTERVAL = 1500;
 const MAX_SPEED = 9;
 
 /* ======================
-   PHYSICS
+   PHYSICS (HANGTIME!)
 ====================== */
 const GRAVITY_GROUND = 1.2;
-const GRAVITY_AIR = 0.8;
+const GRAVITY_AIR = 0.45; // <<< DOPPELTE LUFTZEIT
 const JUMP_CUT = 0.4;
 
 /* ======================
@@ -77,11 +77,6 @@ let obstacles = [];
 let collectibles = [];
 let lastObstacle = 0;
 let lastCollectible = 0;
-
-/* ======================
-   HIGHSCORE
-====================== */
-const SCORE_KEY = "psgame_highscores";
 
 /* ======================
    INPUT
@@ -143,7 +138,6 @@ function loop() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Geschwindigkeit NUR abhängig vom Score
   const level = Math.floor(score / SPEED_INTERVAL);
   const speed = Math.min(BASE_SPEED + level * SPEED_STEP, MAX_SPEED);
 
@@ -249,15 +243,8 @@ function collideObstacle(p, o) {
 }
 
 /* ======================
-   HIGHSCORE
+   GAME FLOW
 ====================== */
-function saveHighscore(name) {
-  const scores = JSON.parse(localStorage.getItem(SCORE_KEY)) || [];
-  scores.push({ name, score });
-  scores.sort((a, b) => b.score - a.score);
-  localStorage.setItem(SCORE_KEY, JSON.stringify(scores.slice(0, 5)));
-}
-
 function startGame() {
   started = true;
   running = true;
@@ -270,12 +257,6 @@ function startGame() {
 
 function endGame() {
   running = false;
-
-  const nameInput = document.getElementById("playerName");
-  if (nameInput) {
-    saveHighscore(nameInput.value || "Anonym");
-  }
-
   document.getElementById("gameover").style.display = "flex";
 }
 
