@@ -18,11 +18,11 @@ const SPEED_INTERVAL = 1500;
 const MAX_SPEED = 9;
 
 /* ======================
-   PHYSICS (HANGTIME!)
+   PHYSICS (FEINTUNING)
 ====================== */
 const GRAVITY_GROUND = 1.2;
-const GRAVITY_AIR = 0.45; // <<< DOPPELTE LUFTZEIT
-const JUMP_CUT = 0.4;
+const GRAVITY_AIR = 0.45;   // lange Luftzeit
+const JUMP_CUT = 0.55;     // <<< 25 % weniger Höhe beim Halten
 
 /* ======================
    WORLD
@@ -138,6 +138,7 @@ function loop() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Geschwindigkeit nur alle 1500 Punkte
   const level = Math.floor(score / SPEED_INTERVAL);
   const speed = Math.min(BASE_SPEED + level * SPEED_STEP, MAX_SPEED);
 
@@ -168,7 +169,6 @@ function loop() {
   obstacles.forEach((o, i) => {
     o.x -= speed;
     ctx.drawImage(images.obstacle, o.x, o.y, o.w, o.h);
-
     if (collideObstacle(player, o)) endGame();
     if (o.x + o.w < 0) obstacles.splice(i, 1);
   });
@@ -177,7 +177,6 @@ function loop() {
   collectibles.forEach((c, i) => {
     c.x -= speed;
     ctx.drawImage(c.img, c.x, c.y, c.w, c.h);
-
     if (collide(player, c)) {
       score += 100;
       collectibles.splice(i, 1);
@@ -185,7 +184,7 @@ function loop() {
     if (c.x + c.w < 0) collectibles.splice(i, 1);
   });
 
-  /* Spawn obstacle */
+  /* Spawns */
   if (frame - lastObstacle > 140 && Math.random() < 0.03) {
     obstacles.push({
       x: canvas.width,
@@ -196,7 +195,6 @@ function loop() {
     lastObstacle = frame;
   }
 
-  /* Spawn collectible */
   if (
     frame - lastCollectible > 260 &&
     collectibles.length < 2 &&
