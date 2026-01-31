@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Plattenspi(e)lers – Das Spiel</title>
+<title>Plattenspielers – Das Spiel</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,7 +14,8 @@
 <span id="score">Punkte: 0</span>
 </div>
 
-<div id="gameover" class="hidden">
+<!-- WICHTIG: display:none von Anfang an -->
+<div id="gameover" style="display:none;">
 <h1>Game Over</h1>
 <input id="playerName" placeholder="Name">
 <button onclick="saveScore()">Speichern</button>
