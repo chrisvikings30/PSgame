@@ -46,17 +46,17 @@ for (const key in imageFiles) {
 }
 
 /* ===============================
-   EBENEN
+   BODEN & EBENEN
 ================================= */
-const GROUND_Y = 300;
-const UPPER_Y  = 210;
+const GROUND_LINE = 340; // visuelle Straßenkante
+const UPPER_OFFSET = 90;
 
 /* ===============================
    SPIELER (2×)
 ================================= */
 const player = {
     x: 120,
-    y: GROUND_Y,
+    y: 0,
     w: 192,
     h: 144,
     vy: 0,
@@ -64,9 +64,6 @@ const player = {
     jumpPower: -22,
     onGround: true
 };
-
-let runFrame = 0;
-let runTick = 0;
 
 /* ===============================
    OBJEKTE
@@ -77,6 +74,9 @@ let bonuses = [];
 
 let lastObstacleFrame = 0;
 const MIN_OBSTACLE_FRAMES = 120;
+
+let runFrame = 0;
+let runTick = 0;
 
 /* ===============================
    STEUERUNG
@@ -104,50 +104,44 @@ function gameLoop() {
     frameCount++;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    /* ---------- SPEED ---------- */
+    /* SPEED */
     const level = Math.floor(score / SPEED_SCORE_INTERVAL);
     speed = Math.min(baseSpeed + level * SPEED_STEP, MAX_SPEED);
 
-    /* ---------- HINTERGRUND ---------- */
+    /* BACKGROUND */
     bgX -= speed;
     if (bgX <= -canvas.width) bgX = 0;
+    draw(images.bg, bgX, 0, canvas.width, canvas.height);
+    draw(images.bg, bgX + canvas.width, 0, canvas.width, canvas.height);
 
-    drawImageSafe(images.bg, bgX, 0, canvas.width, canvas.height);
-    drawImageSafe(images.bg, bgX + canvas.width, 0, canvas.width, canvas.height);
-
-    /* ---------- SPIELER PHYSIK ---------- */
+    /* SPIELER PHYSIK */
     player.vy += player.gravity;
     player.y += player.vy;
 
-    if (player.y >= GROUND_Y) {
-        player.y = GROUND_Y;
+    const groundY = GROUND_LINE - player.h;
+    if (player.y >= groundY) {
+        player.y = groundY;
         player.vy = 0;
         player.onGround = true;
     }
 
-    /* ---------- SPIELER ZEICHNEN ---------- */
-    const px = Math.round(player.x);
-    const py = Math.round(player.y);
-
+    /* SPIELER ZEICHNEN */
     if (!player.onGround) {
-        drawImageSafe(images.jump, px, py, player.w, player.h);
+        draw(images.jump, player.x, player.y, player.w, player.h);
     } else {
         runTick++;
         if (runTick > 7) {
             runFrame = (runFrame + 1) % 2;
             runTick = 0;
         }
-        drawImageSafe(
-            runFrame === 0 ? images.run1 : images.run2,
-            px, py, player.w, player.h
-        );
+        draw(runFrame === 0 ? images.run1 : images.run2,
+             player.x, player.y, player.w, player.h);
     }
 
-    /* ---------- OBSTACLES ---------- */
+    /* OBSTACLES */
     obstacles.forEach((o, i) => {
         o.x -= speed;
-
-        drawImageSafe(images.obstacle, o.x, o.y, o.w, o.h);
+        draw(images.obstacle, o.x, o.y, o.w, o.h);
 
         if (collide(player, o)) {
             if (o.level === "ground") endGame();
@@ -157,55 +151,50 @@ function gameLoop() {
         if (o.x + o.w < 0) obstacles.splice(i, 1);
     });
 
-    /* ---------- COLLECTABLES ---------- */
+    /* BONUS */
     bonuses.forEach((b, i) => {
         b.x -= speed;
-        drawImageSafe(b.img, b.x, b.y, b.w, b.h);
+        draw(b.img, b.x, b.y, b.w, b.h);
 
         if (collide(player, b)) {
             score += b.points;
             bonuses.splice(i, 1);
             updateScore();
         }
-
         if (b.x + b.w < 0) bonuses.splice(i, 1);
     });
 
-    /* ---------- OBSTACLE SPAWN ---------- */
+    /* OBSTACLE SPAWN */
     if (
         frameCount > 120 &&
         frameCount - lastObstacleFrame > MIN_OBSTACLE_FRAMES &&
         Math.random() < 0.035
     ) {
         const isUpper = Math.random() < 0.5;
+        const h = 160;
 
         obstacles.push({
             x: canvas.width + 40,
-            y: isUpper ? UPPER_Y : GROUND_Y - 160,
+            y: isUpper
+                ? GROUND_LINE - h - UPPER_OFFSET
+                : GROUND_LINE - h,
             w: 80,
-            h: 160,
+            h: h,
             level: isUpper ? "upper" : "ground"
         });
 
         lastObstacleFrame = frameCount;
     }
 
-    /* ---------- BONUS SPAWN ---------- */
+    /* BONUS SPAWN */
     if (frameCount > 120 && Math.random() < 0.02) {
-        const types = [
-            { img: images.collect1, points: 50 },
-            { img: images.collect2, points: 25 },
-            { img: images.collect3, points: 15 }
-        ];
-        const t = types[Math.floor(Math.random() * types.length)];
-
         bonuses.push({
             x: canvas.width,
-            y: Math.random() < 0.5 ? UPPER_Y : GROUND_Y - 40,
+            y: GROUND_LINE - 96,
             w: 96,
             h: 96,
-            img: t.img,
-            points: t.points
+            img: images.collect1,
+            points: 25
         });
     }
 
@@ -213,21 +202,12 @@ function gameLoop() {
 }
 
 /* ===============================
-   PIXELSTABILES ZEICHNEN
+   HILFSFUNKTIONEN
 ================================= */
-function drawImageSafe(img, x, y, w, h) {
-    ctx.drawImage(
-        img,
-        Math.round(x),
-        Math.round(y),
-        Math.round(w),
-        Math.round(h)
-    );
+function draw(img, x, y, w, h) {
+    ctx.drawImage(img, Math.round(x), Math.round(y), w, h);
 }
 
-/* ===============================
-   HELFER
-================================= */
 function collide(a, b) {
     return (
         a.x < b.x + b.w &&
@@ -248,6 +228,7 @@ function endGame() {
 }
 
 function startGame() {
+    player.y = GROUND_LINE - player.h;
     document.getElementById("gameover").style.display = "none";
     updateScore();
     gameLoop();
