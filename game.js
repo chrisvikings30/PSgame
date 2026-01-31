@@ -17,8 +17,6 @@ const SPEED_STEP = 0.6;
 const SPEED_INTERVAL = 1500;
 const MAX_SPEED = 9;
 
-const JUMP_FORWARD_BOOST = 1.55;
-
 /* ======================
    PHYSICS
 ====================== */
@@ -81,6 +79,11 @@ let lastObstacle = 0;
 let lastCollectible = 0;
 
 /* ======================
+   HIGHSCORE
+====================== */
+const SCORE_KEY = "psgame_highscores";
+
+/* ======================
    INPUT
 ====================== */
 document.addEventListener("keydown", e => {
@@ -140,12 +143,12 @@ function loop() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Geschwindigkeit NUR abhängig vom Score
   const level = Math.floor(score / SPEED_INTERVAL);
   const speed = Math.min(BASE_SPEED + level * SPEED_STEP, MAX_SPEED);
-  const effSpeed = player.onGround ? speed : speed * JUMP_FORWARD_BOOST;
 
   /* Background */
-  bgX -= effSpeed;
+  bgX -= speed;
   if (bgX <= -canvas.width) bgX = 0;
   ctx.drawImage(images.bg, bgX, 0, canvas.width, canvas.height);
   ctx.drawImage(images.bg, bgX + canvas.width, 0, canvas.width, canvas.height);
@@ -169,7 +172,7 @@ function loop() {
 
   /* Obstacles */
   obstacles.forEach((o, i) => {
-    o.x -= effSpeed;
+    o.x -= speed;
     ctx.drawImage(images.obstacle, o.x, o.y, o.w, o.h);
 
     if (collideObstacle(player, o)) endGame();
@@ -178,14 +181,13 @@ function loop() {
 
   /* Collectibles */
   collectibles.forEach((c, i) => {
-    c.x -= effSpeed;
+    c.x -= speed;
     ctx.drawImage(c.img, c.x, c.y, c.w, c.h);
 
     if (collide(player, c)) {
       score += 100;
       collectibles.splice(i, 1);
     }
-
     if (c.x + c.w < 0) collectibles.splice(i, 1);
   });
 
@@ -247,8 +249,15 @@ function collideObstacle(p, o) {
 }
 
 /* ======================
-   GAME FLOW
+   HIGHSCORE
 ====================== */
+function saveHighscore(name) {
+  const scores = JSON.parse(localStorage.getItem(SCORE_KEY)) || [];
+  scores.push({ name, score });
+  scores.sort((a, b) => b.score - a.score);
+  localStorage.setItem(SCORE_KEY, JSON.stringify(scores.slice(0, 5)));
+}
+
 function startGame() {
   started = true;
   running = true;
@@ -261,6 +270,12 @@ function startGame() {
 
 function endGame() {
   running = false;
+
+  const nameInput = document.getElementById("playerName");
+  if (nameInput) {
+    saveHighscore(nameInput.value || "Anonym");
+  }
+
   document.getElementById("gameover").style.display = "flex";
 }
 
