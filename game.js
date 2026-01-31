@@ -48,8 +48,8 @@ images[key] = img;
 /* ===============================
 EBENEN
 ================================= */
-const GROUND_Y = 300;
-const UPPER_Y = 210;
+const GROUND_Y = 300; // Boden
+const UPPER_Y = 210; // zweite Ebene
 
 /* ===============================
 SPIELER (2× GRÖSSE)
@@ -57,8 +57,8 @@ SPIELER (2× GRÖSSE)
 const player = {
 x: 120,
 y: GROUND_Y,
-w: 192, // vorher 96
-h: 144, // vorher 72
+w: 192,
+h: 144,
 vy: 0,
 gravity: 1.4,
 jumpPower: -22,
@@ -75,9 +75,9 @@ let bgX = 0;
 let obstacles = [];
 let bonuses = [];
 
-/* Abstand über Zeit (kein Bug mehr!) */
+/* Abstand über Zeit */
 let lastObstacleFrame = 0;
-const MIN_OBSTACLE_FRAMES = 120; // genug Platz für große Figur
+const MIN_OBSTACLE_FRAMES = 120;
 
 /* ===============================
 STEUERUNG
@@ -105,17 +105,17 @@ if (!running) return;
 frameCount++;
 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-/* SPEED-ERHÖHUNG */
+/* ---------- SPEED ---------- */
 const level = Math.floor(score / SPEED_SCORE_INTERVAL);
 speed = Math.min(baseSpeed + level * SPEED_STEP, MAX_SPEED);
 
-/* HINTERGRUND */
+/* ---------- HINTERGRUND ---------- */
 bgX -= speed;
 if (bgX <= -canvas.width) bgX = 0;
 ctx.drawImage(images.bg, bgX, 0, canvas.width, canvas.height);
 ctx.drawImage(images.bg, bgX + canvas.width, 0, canvas.width, canvas.height);
 
-/* SPIELER PHYSIK */
+/* ---------- SPIELER PHYSIK ---------- */
 player.vy += player.gravity;
 player.y += player.vy;
 
@@ -125,7 +125,7 @@ player.vy = 0;
 player.onGround = true;
 }
 
-/* SPIELER ZEICHNEN */
+/* ---------- SPIELER ZEICHNEN ---------- */
 if (!player.onGround) {
 ctx.drawImage(images.jump, player.x, player.y, player.w, player.h);
 } else {
@@ -140,16 +140,28 @@ player.x, player.y, player.w, player.h
 );
 }
 
-/* OBSTACLES */
+/* ---------- OBSTACLES ---------- */
 obstacles.forEach((o, i) => {
 o.x -= speed;
 ctx.drawImage(images.obstacle, o.x, o.y, o.w, o.h);
 
-if (collide(player, o)) endGame();
+if (collide(player, o)) {
+
+// Untere Ebene → immer tödlich
+if (o.level === "ground") {
+endGame();
+}
+
+// Obere Ebene → nur tödlich beim Springen
+if (o.level === "upper" && !player.onGround) {
+endGame();
+}
+}
+
 if (o.x + o.w < 0) obstacles.splice(i, 1);
 });
 
-/* COLLECTABLES (2× GRÖSSE) */
+/* ---------- COLLECTABLES ---------- */
 bonuses.forEach((b, i) => {
 b.x -= speed;
 ctx.drawImage(b.img, b.x, b.y, b.w, b.h);
@@ -159,30 +171,30 @@ score += b.points;
 bonuses.splice(i, 1);
 updateScore();
 }
+
 if (b.x + b.w < 0) bonuses.splice(i, 1);
 });
 
-/* OBSTACLE SPAWN (ROBUST) */
+/* ---------- OBSTACLE SPAWN ---------- */
 if (
 frameCount > 120 &&
 frameCount - lastObstacleFrame > MIN_OBSTACLE_FRAMES &&
 Math.random() < 0.035
 ) {
-const levelY = Math.random() < 0.5
-? GROUND_Y - 160 // Bodenhindernis (2×)
-: UPPER_Y;
+const isUpper = Math.random() < 0.5;
 
 obstacles.push({
 x: canvas.width + 40,
-y: levelY,
-w: 80, // vorher 40
-h: 160 // vorher 80
+y: isUpper ? UPPER_Y : GROUND_Y - 160,
+w: 80,
+h: 160,
+level: isUpper ? "upper" : "ground"
 });
 
 lastObstacleFrame = frameCount;
 }
 
-/* BONUS SPAWN */
+/* ---------- BONUS SPAWN ---------- */
 if (frameCount > 120 && Math.random() < 0.02) {
 const types = [
 { img: images.collect1, points: 50 },
@@ -194,8 +206,8 @@ const t = types[Math.floor(Math.random() * types.length)];
 bonuses.push({
 x: canvas.width,
 y: Math.random() < 0.5 ? UPPER_Y : GROUND_Y - 40,
-w: 96, // vorher 48
-h: 96, // vorher 48
+w: 96,
+h: 96,
 img: t.img,
 points: t.points
 });
