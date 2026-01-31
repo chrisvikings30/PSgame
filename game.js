@@ -10,13 +10,14 @@ let score = 0;
 let frame = 0;
 
 /* ======================
-   SPEED
+   SPEED / JUMP
 ====================== */
 let speed = 4;
 const SPEED_STEP = 0.6;
 const SPEED_INTERVAL = 1500;
 const MAX_SPEED = 9;
-const JUMP_FORWARD_BOOST = 1.3;
+
+const JUMP_FORWARD_BOOST = 1.55; // MEHR WEITE IN DER LUFT
 
 /* ======================
    PHYSICS
@@ -29,7 +30,6 @@ const JUMP_CUT = 0.4;
    WORLD
 ====================== */
 const ROAD_Y = 380;
-const UPPER_COLLECT_Y = 240;
 
 /* ======================
    PLAYER
@@ -54,8 +54,7 @@ const assets = {
   run1: "assets/player_run1.png",
   run2: "assets/player_run2.png",
   jump: "assets/player_jump.png",
-  obstacle: "assets/obstacle.png",
-  collect: "assets/collect1.png"
+  obstacle: "assets/obstacle.png"
 };
 
 let loaded = 0;
@@ -73,7 +72,6 @@ Object.keys(assets).forEach(k => {
 ====================== */
 let bgX = 0;
 let obstacles = [];
-let bonuses = [];
 let lastObstacle = 0;
 
 /* ======================
@@ -108,7 +106,7 @@ canvas.addEventListener("touchend", () => {
 });
 
 /* ======================
-   STARTSCREEN
+   START SCREEN
 ====================== */
 function drawStartScreen() {
   ctx.fillStyle = "#000";
@@ -165,12 +163,13 @@ function loop() {
   obstacles.forEach((o, i) => {
     o.x -= effSpeed;
     ctx.drawImage(images.obstacle, o.x, o.y, o.w, o.h);
-    if (collide(player, o)) endGame();
+
+    if (collidePlayerObstacle(player, o)) endGame();
     if (o.x + o.w < 0) obstacles.splice(i, 1);
   });
 
   // Spawn obstacle
-  if (frame - lastObstacle > 130 && Math.random() < 0.03) {
+  if (frame - lastObstacle > 140 && Math.random() < 0.03) {
     obstacles.push({
       x: canvas.width,
       y: ROAD_Y - 160,
@@ -187,36 +186,22 @@ function loop() {
 }
 
 /* ======================
-   COLLISION
+   FAIR HITBOX
 ====================== */
-function collide(a, b) {
+function collidePlayerObstacle(p, o) {
+  const hitbox = {
+    x: o.x + 14,
+    y: o.y + 18,
+    w: o.w - 28,
+    h: o.h - 30
+  };
+
   return (
-    a.x < b.x + b.w &&
-    a.x + a.w > b.x &&
-    a.y < b.y + b.h &&
-    a.y + a.h > b.y
+    p.x < hitbox.x + hitbox.w &&
+    p.x + p.w > hitbox.x &&
+    p.y < hitbox.y + hitbox.h &&
+    p.y + p.h > hitbox.y
   );
-}
-
-/* ======================
-   HIGHSCORE
-====================== */
-const KEY = "psgame_scores";
-
-document.getElementById("saveScore").onclick = () => {
-  const name = document.getElementById("playerName").value || "Anonym";
-  const scores = JSON.parse(localStorage.getItem(KEY)) || [];
-  scores.push({ name, score });
-  scores.sort((a, b) => b.score - a.score);
-  localStorage.setItem(KEY, JSON.stringify(scores.slice(0, 5)));
-  renderHighscores();
-};
-
-function renderHighscores() {
-  const list = JSON.parse(localStorage.getItem(KEY)) || [];
-  const div = document.getElementById("highscores");
-  div.innerHTML = "<h3>Bestenliste</h3>" +
-    list.map(s => `${s.name}: ${s.score}`).join("<br>");
 }
 
 /* ======================
@@ -234,7 +219,6 @@ function startGame() {
 function endGame() {
   running = false;
   document.getElementById("gameover").style.display = "flex";
-  renderHighscores();
 }
 
 function restart() {
