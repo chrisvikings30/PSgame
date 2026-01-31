@@ -18,10 +18,10 @@ const SPEED_INTERVAL = 1500;
 const MAX_SPEED = 9;
 
 /* ======================
-   PHYSICS (FESTE SPRUNGHÖHE)
+   PHYSICS
 ====================== */
 const GRAVITY_GROUND = 1.2;
-const GRAVITY_AIR = 0.45;   // lange, konstante Luftzeit
+const GRAVITY_AIR = 0.45;
 
 /* ======================
    WORLD
@@ -38,12 +38,12 @@ const player = {
   w: 192,
   h: 144,
   vy: 0,
-  jumpPower: -20,   // EIN feste Sprunghöhe
+  jumpPower: -20, // feste Sprunghöhe
   onGround: true
 };
 
 /* ======================
-   ASSETS
+   ASSETS (IMAGES)
 ====================== */
 const images = {};
 const assets = {
@@ -57,13 +57,25 @@ const assets = {
   collect3: "assets/collect3.png"
 };
 
+/* ======================
+   BACKGROUND MUSIC
+====================== */
+const music = new Audio("assets/music.mp3");
+music.loop = true;
+music.volume = 0.5;
+
+/* ======================
+   LOAD ASSETS
+====================== */
 let loaded = 0;
-Object.keys(assets).forEach(k => {
-  images[k] = new Image();
-  images[k].src = assets[k];
-  images[k].onload = () => {
+Object.keys(assets).forEach(key => {
+  images[key] = new Image();
+  images[key].src = assets[key];
+  images[key].onload = () => {
     loaded++;
-    if (loaded === Object.keys(assets).length) drawStartScreen();
+    if (loaded === Object.keys(assets).length) {
+      drawStartScreen();
+    }
   };
 });
 
@@ -77,7 +89,7 @@ let lastObstacle = 0;
 let lastCollectible = 0;
 
 /* ======================
-   INPUT (KEINE VARIABLE HÖHE MEHR)
+   INPUT
 ====================== */
 document.addEventListener("keydown", e => {
   if (!started) return;
@@ -122,7 +134,7 @@ function loop() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Geschwindigkeit NUR alle 1500 Punkte
+  // Geschwindigkeit nur score-abhängig
   const level = Math.floor(score / SPEED_INTERVAL);
   const speed = Math.min(BASE_SPEED + level * SPEED_STEP, MAX_SPEED);
 
@@ -144,15 +156,17 @@ function loop() {
   }
 
   /* Player draw */
-  const img = player.onGround
+  const sprite = player.onGround
     ? (frame % 20 < 10 ? images.run1 : images.run2)
     : images.jump;
-  ctx.drawImage(img, player.x, player.y, player.w, player.h);
+
+  ctx.drawImage(sprite, player.x, player.y, player.w, player.h);
 
   /* Obstacles */
   obstacles.forEach((o, i) => {
     o.x -= speed;
     ctx.drawImage(images.obstacle, o.x, o.y, o.w, o.h);
+
     if (collideObstacle(player, o)) endGame();
     if (o.x + o.w < 0) obstacles.splice(i, 1);
   });
@@ -161,6 +175,7 @@ function loop() {
   collectibles.forEach((c, i) => {
     c.x -= speed;
     ctx.drawImage(c.img, c.x, c.y, c.w, c.h);
+
     if (collide(player, c)) {
       score += 100;
       collectibles.splice(i, 1);
@@ -168,7 +183,7 @@ function loop() {
     if (c.x + c.w < 0) collectibles.splice(i, 1);
   });
 
-  /* Spawns */
+  /* Spawn obstacle (unten) */
   if (frame - lastObstacle > 140 && Math.random() < 0.03) {
     obstacles.push({
       x: canvas.width,
@@ -179,6 +194,7 @@ function loop() {
     lastObstacle = frame;
   }
 
+  /* Spawn collectible */
   if (
     frame - lastCollectible > 260 &&
     collectibles.length < 2 &&
@@ -234,15 +250,20 @@ function startGame() {
   obstacles = [];
   collectibles = [];
   player.y = ROAD_Y - player.h;
+
+  // Musik starten (wichtig: erst nach User-Interaktion!)
+  music.currentTime = 0;
+  music.play();
+
   loop();
 }
 
 function endGame() {
   running = false;
+  music.pause();
   document.getElementById("gameover").style.display = "flex";
 }
 
 function restart() {
   location.reload();
 }
-
