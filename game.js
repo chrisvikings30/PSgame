@@ -1,12 +1,13 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// ------------------ Status ------------------
+// ================== SPIELSTATUS ==================
 let running = true;
 let score = 0;
 let speed = 4;
+let gameTime = 0; // <<< WICHTIG: verhindert sofortiges Game Over
 
-// ------------------ Bilder ------------------
+// ================== BILDER ==================
 const bg = new Image();
 bg.src = "assets/bg.png";
 
@@ -29,10 +30,10 @@ collectImgs[0].img.src = "assets/collect1.png";
 collectImgs[1].img.src = "assets/collect2.png";
 collectImgs[2].img.src = "assets/collect3.png";
 
-// ------------------ Hintergrund ------------------
+// ================== HINTERGRUND ==================
 let bgX = 0;
 
-// ------------------ Spieler ------------------
+// ================== SPIELER ==================
 const player = {
 x: 100,
 y: 320,
@@ -48,31 +49,33 @@ onGround: true
 let runFrame = 0;
 let frameTimer = 0;
 
-// ------------------ Objekte ------------------
+// ================== OBJEKTE ==================
 let obstacles = [];
 let collectibles = [];
 
-// ------------------ Steuerung ------------------
+// ================== STEUERUNG ==================
 document.addEventListener("keydown", e => {
-if (e.code === "Space" && player.onGround) {
+if ((e.code === "Space" || e.code === "ArrowUp") && player.onGround) {
 player.vy = player.jump;
 player.onGround = false;
 }
 });
 
-// ------------------ Game Loop ------------------
+// ================== GAME LOOP ==================
 function loop() {
 if (!running) return;
 
-ctx.clearRect(0,0,canvas.width,canvas.height);
+gameTime++; // <<< Zeit zählt ab jetzt mit
 
-// Hintergrund
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+// ---------- Hintergrund ----------
 bgX -= speed;
 if (bgX <= -canvas.width) bgX = 0;
 ctx.drawImage(bg, bgX, 0, canvas.width, canvas.height);
 ctx.drawImage(bg, bgX + canvas.width, 0, canvas.width, canvas.height);
 
-// Spieler Physik
+// ---------- Spieler Physik ----------
 player.vy += player.gravity;
 player.y += player.vy;
 
@@ -82,46 +85,48 @@ player.vy = 0;
 player.onGround = true;
 }
 
-// Spieler zeichnen
+// ---------- Spieler zeichnen ----------
 if (!player.onGround) {
 ctx.drawImage(jumpImg, player.x, player.y, player.w, player.h);
 } else {
 frameTimer++;
-if (frameTimer > 8) {
+if (frameTimer >= 8) {
 runFrame = (runFrame + 1) % 2;
 frameTimer = 0;
 }
 ctx.drawImage(runImgs[runFrame], player.x, player.y, player.w, player.h);
 }
 
-// Hindernisse
-obstacles.forEach((o,i) => {
+// ---------- Hindernisse ----------
+obstacles.forEach((o, i) => {
 o.x -= speed;
 ctx.drawImage(obstacleImg, o.x, o.y, o.w, o.h);
 
-if (hit(player,o)) endGame();
-if (o.x + o.w < 0) obstacles.splice(i,1);
+if (hit(player, o)) endGame();
+if (o.x + o.w < 0) obstacles.splice(i, 1);
 });
 
-// Bonusobjekte
-collectibles.forEach((c,i) => {
+// ---------- Bonusobjekte ----------
+collectibles.forEach((c, i) => {
 c.x -= speed;
 ctx.drawImage(c.img, c.x, c.y, 48, 48);
 
-if (hit(player,c)) {
+if (hit(player, c)) {
 score += c.points;
-collectibles.splice(i,1);
+collectibles.splice(i, 1);
 document.getElementById("score").innerText = "Punkte: " + score;
 }
-if (c.x < -50) collectibles.splice(i,1);
+if (c.x < -50) collectibles.splice(i, 1);
 });
 
-// Spawns
-if (Math.random() < 0.02)
+// ---------- Spawns ----------
+// Hindernisse erst NACH ca. 1 Sekunde
+if (gameTime > 60 && Math.random() < 0.02) {
 obstacles.push({ x: canvas.width, y: 300, w: 40, h: 80 });
+}
 
-if (Math.random() < 0.015) {
-const t = collectImgs[Math.floor(Math.random()*3)];
+if (gameTime > 60 && Math.random() < 0.015) {
+const t = collectImgs[Math.floor(Math.random() * 3)];
 collectibles.push({
 x: canvas.width,
 y: Math.random() < 0.5 ? 250 : 300,
@@ -135,44 +140,46 @@ h: 48
 requestAnimationFrame(loop);
 }
 
-// ------------------ Helfer ------------------
-function hit(a,b){
-return a.x < b.x + b.w &&
+// ================== HILFSFUNKTIONEN ==================
+function hit(a, b) {
+return (
+a.x < b.x + b.w &&
 a.x + a.w > b.x &&
 a.y < b.y + b.h &&
-a.y + a.h > b.y;
+a.y + a.h > b.y
+);
 }
 
-function endGame(){
+function endGame() {
 running = false;
 document.getElementById("gameover").classList.remove("hidden");
 showScores();
 }
 
-// ------------------ Highscore ------------------
-function saveScore(){
+// ================== HIGHSCORE ==================
+function saveScore() {
 const name = document.getElementById("playerName").value || "Anonym";
-const scores = JSON.parse(localStorage.getItem("scores")||"[]");
-scores.push({name, score});
-scores.sort((a,b)=>b.score-a.score);
-localStorage.setItem("scores", JSON.stringify(scores.slice(0,10)));
+const scores = JSON.parse(localStorage.getItem("scores") || "[]");
+scores.push({ name, score });
+scores.sort((a, b) => b.score - a.score);
+localStorage.setItem("scores", JSON.stringify(scores.slice(0, 10)));
 showScores();
 }
 
-function showScores(){
+function showScores() {
 const list = document.getElementById("highscores");
 list.innerHTML = "";
-JSON.parse(localStorage.getItem("scores")||"[]")
-.forEach(s => {
+JSON.parse(localStorage.getItem("scores") || "[]").forEach(s => {
 const li = document.createElement("li");
 li.innerText = `${s.name}: ${s.score}`;
 list.appendChild(li);
 });
 }
 
-function restart(){
+function restart() {
 location.reload();
 }
 
-// Start
+// ================== START ==================
+document.getElementById("gameover").classList.add("hidden");
 loop();
