@@ -18,11 +18,10 @@ const SPEED_INTERVAL = 1500;
 const MAX_SPEED = 9;
 
 /* ======================
-   PHYSICS (FEINTUNING)
+   PHYSICS (FESTE SPRUNGHÖHE)
 ====================== */
 const GRAVITY_GROUND = 1.2;
-const GRAVITY_AIR = 0.45;   // lange Luftzeit
-const JUMP_CUT = 0.55;     // <<< 25 % weniger Höhe beim Halten
+const GRAVITY_AIR = 0.45;   // lange, konstante Luftzeit
 
 /* ======================
    WORLD
@@ -39,9 +38,8 @@ const player = {
   w: 192,
   h: 144,
   vy: 0,
-  jumpPower: -26,
-  onGround: true,
-  jumping: false
+  jumpPower: -26,   // EIN feste Sprunghöhe
+  onGround: true
 };
 
 /* ======================
@@ -79,21 +77,13 @@ let lastObstacle = 0;
 let lastCollectible = 0;
 
 /* ======================
-   INPUT
+   INPUT (KEINE VARIABLE HÖHE MEHR)
 ====================== */
 document.addEventListener("keydown", e => {
   if (!started) return;
   if ((e.code === "Space" || e.code === "ArrowUp") && player.onGround) {
     player.vy = player.jumpPower;
     player.onGround = false;
-    player.jumping = true;
-  }
-});
-
-document.addEventListener("keyup", e => {
-  if ((e.code === "Space" || e.code === "ArrowUp") && player.jumping) {
-    if (player.vy < 0) player.vy *= JUMP_CUT;
-    player.jumping = false;
   }
 });
 
@@ -101,12 +91,6 @@ canvas.addEventListener("touchstart", () => {
   if (!started || !player.onGround) return;
   player.vy = player.jumpPower;
   player.onGround = false;
-  player.jumping = true;
-});
-
-canvas.addEventListener("touchend", () => {
-  if (player.jumping && player.vy < 0) player.vy *= JUMP_CUT;
-  player.jumping = false;
 });
 
 /* ======================
@@ -120,7 +104,7 @@ function drawStartScreen() {
   ctx.textAlign = "center";
   ctx.font = "22px Arial";
   ctx.fillText("PC: Leertaste = Springen", 450, 170);
-  ctx.fillText("Handy: Tippen / Halten = Springen", 450, 200);
+  ctx.fillText("Handy: Tippen = Springen", 450, 200);
   ctx.fillText("📱 Tipp: Handy QUER halten", 450, 240);
 
   ctx.font = "26px Arial";
@@ -138,7 +122,7 @@ function loop() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Geschwindigkeit nur alle 1500 Punkte
+  // Geschwindigkeit NUR alle 1500 Punkte
   const level = Math.floor(score / SPEED_INTERVAL);
   const speed = Math.min(BASE_SPEED + level * SPEED_STEP, MAX_SPEED);
 
