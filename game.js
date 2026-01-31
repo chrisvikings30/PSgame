@@ -10,20 +10,21 @@ let score = 0;
 let frameCount = 0;
 
 /* ===============================
-   SPEED
+   SPEED / FLOW
 ================================= */
 let baseSpeed = 4;
 let speed = baseSpeed;
 const SPEED_STEP = 0.6;
 const SPEED_SCORE_INTERVAL = 1500;
 const MAX_SPEED = 9;
-const JUMP_FORWARD_BOOST = 1.25;
+
+const JUMP_FORWARD_BOOST = 1.35;
 
 /* ===============================
    GRAVITY / JUMP
 ================================= */
 const GRAVITY_GROUND = 1.2;
-const GRAVITY_AIR = 0.85;
+const GRAVITY_AIR = 0.75;
 
 /* ===============================
    ASSETS
@@ -65,7 +66,7 @@ const player = {
     w: 192,
     h: 144,
     vy: 0,
-    jumpPower: -28,
+    jumpPower: -26,
     onGround: true
 };
 
@@ -78,6 +79,7 @@ let runTick = 0;
 let bgX = 0;
 let obstacles = [];
 let bonuses = [];
+
 let lastObstacleFrame = 0;
 const MIN_OBSTACLE_FRAMES = 130;
 
@@ -136,8 +138,12 @@ function gameLoop() {
 
     const level = Math.floor(score / SPEED_SCORE_INTERVAL);
     speed = Math.min(baseSpeed + level * SPEED_STEP, MAX_SPEED);
-    const effectiveSpeed = player.onGround ? speed : speed * JUMP_FORWARD_BOOST;
 
+    const effectiveSpeed = player.onGround
+        ? speed
+        : speed * JUMP_FORWARD_BOOST;
+
+    /* BACKGROUND */
     bgX -= effectiveSpeed;
     if (bgX <= -canvas.width) bgX = 0;
     draw(images.bg, bgX, 0, canvas.width, canvas.height);
@@ -154,7 +160,7 @@ function gameLoop() {
         player.onGround = true;
     }
 
-    /* DRAW PLAYER */
+    /* PLAYER DRAW */
     if (!player.onGround) {
         draw(images.jump, player.x, player.y, player.w, player.h);
     } else {
@@ -167,7 +173,7 @@ function gameLoop() {
              player.x, player.y, player.w, player.h);
     }
 
-    /* OBSTACLES */
+    /* OBSTACLES (NUR UNTEN) */
     obstacles.forEach((o, i) => {
         o.x -= effectiveSpeed;
         draw(images.obstacle, o.x, o.y, o.w, o.h);
@@ -188,7 +194,11 @@ function gameLoop() {
     });
 
     /* SPAWNS */
-    if (frameCount > 120 && frameCount - lastObstacleFrame > MIN_OBSTACLE_FRAMES && Math.random() < 0.035) {
+    if (
+        frameCount > 120 &&
+        frameCount - lastObstacleFrame > MIN_OBSTACLE_FRAMES &&
+        Math.random() < 0.035
+    ) {
         obstacles.push({
             x: canvas.width + 40,
             y: ROAD_Y - 160 + 12,
@@ -198,7 +208,11 @@ function gameLoop() {
         lastObstacleFrame = frameCount;
     }
 
-    if (frameCount > 200 && bonuses.length === 0 && Math.random() < 0.01) {
+    if (
+        frameCount > 200 &&
+        bonuses.length === 0 &&
+        Math.random() < 0.01
+    ) {
         bonuses.push({
             x: canvas.width,
             y: Math.random() < 0.5 ? ROAD_Y - 96 : UPPER_COLLECT_Y,
