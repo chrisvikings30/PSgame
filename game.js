@@ -1,5 +1,26 @@
 const canvas = document.getElementById("game");
+canvas.width = 900;
+canvas.height = 450;
 const ctx = canvas.getContext("2d");
+
+/* ======================
+   MOBILE FULLSCREEN
+====================== */
+let fullscreenAllowed = false;
+
+function tryFullscreen() {
+  if (!fullscreenAllowed) return;
+  if (window.innerWidth > window.innerHeight) {
+    if (!document.fullscreenElement) {
+      canvas.requestFullscreen?.().catch(() => {});
+    }
+  }
+}
+
+window.addEventListener("orientationchange", () => {
+  setTimeout(tryFullscreen, 300);
+});
+window.addEventListener("resize", tryFullscreen);
 
 /* ======================
    GAME STATE
@@ -58,14 +79,12 @@ const assets = {
 };
 
 /* ======================
-   MUSIC (iOS SAFE)
+   MUSIC (MOBILE SAFE)
 ====================== */
-const music = new Audio();
-music.src = "assets/music.mp3";
+const music = new Audio("assets/music.mp3");
 music.loop = true;
 music.volume = 0.5;
 music.preload = "auto";
-
 let musicUnlocked = false;
 
 /* ======================
@@ -77,9 +96,7 @@ Object.keys(assets).forEach(key => {
   images[key].src = assets[key];
   images[key].onload = () => {
     loaded++;
-    if (loaded === Object.keys(assets).length) {
-      drawStartScreen();
-    }
+    if (loaded === Object.keys(assets).length) drawStartScreen();
   };
 });
 
@@ -97,7 +114,6 @@ let lastCollectible = 0;
 ====================== */
 document.addEventListener("keydown", e => {
   if (!started) return;
-
   if ((e.code === "Space" || e.code === "ArrowUp") && player.onGround) {
     player.vy = player.jumpPower;
     player.onGround = false;
@@ -112,7 +128,7 @@ canvas.addEventListener(
   e => {
     e.preventDefault();
 
-    // Musik einmalig entsperren (WICHTIG für iOS)
+    // Musik entsperren (iOS)
     if (!musicUnlocked) {
       music.play().then(() => {
         music.pause();
@@ -121,9 +137,11 @@ canvas.addEventListener(
       }).catch(() => {});
     }
 
-    // Spiel starten
+    // Spielstart
     if (!started) {
+      fullscreenAllowed = true;
       startGame();
+      tryFullscreen();
       return;
     }
 
@@ -148,12 +166,16 @@ function drawStartScreen() {
   ctx.font = "22px Arial";
   ctx.fillText("PC: Leertaste = Springen", 450, 170);
   ctx.fillText("Handy: Tippen = Springen", 450, 200);
-  ctx.fillText("📱 Tipp: Handy QUER halten", 450, 240);
+  ctx.fillText("📱 Handy QUER drehen für Fullscreen", 450, 240);
 
   ctx.font = "26px Arial";
   ctx.fillText("▶ SPIEL STARTEN", 450, 310);
 
-  canvas.onclick = startGame;
+  canvas.onclick = () => {
+    fullscreenAllowed = true;
+    startGame();
+    tryFullscreen();
+  };
 }
 
 /* ======================
@@ -187,9 +209,7 @@ function loop() {
 
   /* Player draw */
   const sprite = player.onGround
-    ? frame % 20 < 10
-      ? images.run1
-      : images.run2
+    ? frame % 20 < 10 ? images.run1 : images.run2
     : images.jump;
 
   ctx.drawImage(sprite, player.x, player.y, player.w, player.h);
@@ -198,7 +218,6 @@ function loop() {
   obstacles.forEach((o, i) => {
     o.x -= speed;
     ctx.drawImage(images.obstacle, o.x, o.y, o.w, o.h);
-
     if (collideObstacle(player, o)) endGame();
     if (o.x + o.w < 0) obstacles.splice(i, 1);
   });
@@ -207,16 +226,14 @@ function loop() {
   collectibles.forEach((c, i) => {
     c.x -= speed;
     ctx.drawImage(c.img, c.x, c.y, c.w, c.h);
-
     if (collide(player, c)) {
       score += 100;
       collectibles.splice(i, 1);
     }
-
     if (c.x + c.w < 0) collectibles.splice(i, 1);
   });
 
-  /* Spawn obstacle */
+  /* Spawns */
   if (frame - lastObstacle > 140 && Math.random() < 0.03) {
     obstacles.push({
       x: canvas.width,
@@ -227,7 +244,6 @@ function loop() {
     lastObstacle = frame;
   }
 
-  /* Spawn collectible */
   if (
     frame - lastCollectible > 260 &&
     collectibles.length < 2 &&
@@ -264,13 +280,12 @@ function collide(a, b) {
 }
 
 function collideObstacle(p, o) {
-  const hitbox = {
+  return collide(p, {
     x: o.x + 24,
     y: o.y + 35,
     w: o.w - 48,
     h: o.h - 60
-  };
-  return collide(p, hitbox);
+  });
 }
 
 /* ======================
@@ -289,7 +304,6 @@ function startGame() {
   collectibles = [];
   player.y = ROAD_Y - player.h;
 
-  // Musik sicher starten
   music.currentTime = 0;
   music.play().catch(() => {});
 
@@ -299,7 +313,6 @@ function startGame() {
 function endGame() {
   running = false;
   music.pause();
-
   document.getElementById("gameover").style.display = "flex";
 }
 
